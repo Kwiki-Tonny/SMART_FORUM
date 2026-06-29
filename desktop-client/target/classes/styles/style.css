@@ -1,0 +1,234 @@
+/* =============================================
+   COMMON STYLES (Login + Dashboard)
+   ============================================= */
+
+.root {
+    -fx-font-family: 'Segoe UI', system-ui, sans-serif;
+    -fx-background-color: #ece5dd;
+}
+
+/* --- LOGIN SCREEN --- */
+.title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-fill: #075E54;
+}
+
+.subtitle {
+    -fx-font-size: 14px;
+    -fx-fill: #888;
+}
+
+.text-field, .password-field {
+    -fx-padding: 10px;
+    -fx-background-radius: 8px;
+    -fx-border-color: #ccc;
+    -fx-border-radius: 8px;
+    -fx-pref-width: 300px;
+}
+
+.primary-btn {
+    -fx-background-color: #075E54;
+    -fx-text-fill: white;
+    -fx-padding: 10px 20px;
+    -fx-font-size: 16px;
+    -fx-background-radius: 20px;
+    -fx-cursor: hand;
+}
+.primary-btn:hover {
+    -fx-background-color: #128C7E;
+}
+
+.status {
+    -fx-text-fill: red;
+    -fx-font-size: 12px;
+}
+
+/* --- DASHBOARD STYLES (WhatsApp/LinkedIn inspired) --- */
+
+/* Sidebar */
+.sidebar {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dbdbdb;
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-header {
+    -fx-background-color: #075E54;
+    -fx-padding: 15px;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+}
+
+/* Status dot */
+.status-dot {
+    -fx-background-radius: 50%;
+    -fx-pref-width: 10px;
+    -fx-pref-height: 10px;
+}
+.status-dot.online {
+    -fx-background-color: #25D366;
+}
+.status-dot.offline {
+    -fx-background-color: #d32f2f;
+}
+
+/* Group list items */
+.group-item {
+    -fx-padding: 12px 16px;
+    -fx-border-color: #f0f0f0;
+    -fx-border-width: 0 0 1px 0;
+    -fx-cursor: hand;
+}
+.group-item:hover {
+    -fx-background-color: #ebebeb;
+}
+.group-item .name {
+    -fx-font-weight: 500;
+    -fx-font-size: 14px;
+}
+.group-item .preview {
+    -fx-font-size: 12px;
+    -fx-text-fill: #8a8a8a;
+}
+
+/* Topic list items */
+.topic-item {
+    -fx-padding: 12px 15px;
+    -fx-border-color: #f0f0f0;
+    -fx-border-width: 0 0 1px 0;
+    -fx-cursor: hand;
+}
+.topic-item:hover {
+    -fx-background-color: #f5f5f5;
+}
+.topic-item .title {
+    -fx-font-weight: 600;
+    -fx-font-size: 15px;
+    -fx-text-fill: #075E54;
+}
+.topic-item .meta {
+    -fx-font-size: 11px;
+    -fx-text-fill: #8a8a8a;
+}
+
+/* Post list items (nested replies – simple flat) */
+.post-item {
+    -fx-padding: 10px 15px;
+    -fx-border-color: #f0f0f0;
+    -fx-border-width: 0 0 1px 0;
+}
+.post-item .content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #333;
+}
+.post-item .meta {
+    -fx-font-size: 11px;
+    -fx-text-fill: #8a8a8a;
+}
+
+/* Back button */
+.back-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #075E54;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+.back-btn:hover {
+    -fx-underline: true;
+}
+
+/* Chat input area (optional) */
+.chat-input {
+    -fx-background-color: white;
+    -fx-border-color: #dbdbdb;
+    -fx-border-width: 1px 0 0 0;
+}
+
+/* Scroll bars */
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+.scroll-bar:vertical .thumb {
+    -fx-background-color: #c0c0c0;
+    -fx-background-radius: 10px;
+}
+.scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #a0a0a0;
+}
+
+/* --- Post / Topic Cards (LinkedIn style) --- */
+.card {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-radius: 8px;
+    -fx-padding: 12px 15px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);
+    -fx-spacing: 6px;
+    -fx-margin: 4px 0;
+}
+
+.card .author {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #333;
+}
+
+.card .timestamp {
+    -fx-font-size: 11px;
+    -fx-text-fill: #8a8a8a;
+}
+
+.card .title {
+    -fx-font-weight: 600;
+    -fx-font-size: 16px;
+    -fx-text-fill: #075E54;
+}
+
+.card .content {
+    -fx-font-size: 14px;
+    -fx-text-fill: #444;
+    -fx-wrap-text: true;
+}
+
+.card .meta {
+    -fx-font-size: 12px;
+    -fx-text-fill: #888;
+}
+
+.card .actions {
+    -fx-spacing: 15px;
+    -fx-padding: 6px 0 0 0;
+}
+
+.card .actions .action-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #555;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+.card .actions .action-btn:hover {
+    -fx-text-fill: #075E54;
+}
+
+/* Nested reply indentation */
+.reply-indent {
+    -fx-padding: 0 0 0 20px;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 0 0 0 2px;
+    -fx-margin: 4px 0 4px 20px;
+}
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 8px;
+}
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 4px 0;
+}

@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   WHATSAPP-INSPIRED CUSTOM STYLES
+   ============================================ */
+
+/* 1. Custom Properties (Colors) */
+:root {
+    --whatsapp-primary: #075E54;
+    --whatsapp-primary-light: #128C7E;
+    --whatsapp-secondary: #25D366;
+    --whatsapp-chat-bg: #E5DDD5;
+    --whatsapp-sent-bubble: #DCF8C6;
+    --whatsapp-received-bubble: #FFFFFF;
+    --whatsapp-header-bg: #EDEDED;
+    --whatsapp-sidebar-bg: #FFFFFF;
+}
+
+/* 2. Global Styles */
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #DADBDC;
+}
+
+/* 3. WhatsApp Container */
+.whatsapp-container {
+    @apply flex h-screen max-w-[1400px] mx-auto shadow-xl;
+    background-color: #DADBDC;
+}
+
+/* 4. Sidebar */
+.whatsapp-sidebar {
+    @apply w-[380px] flex-shrink-0 flex flex-col border-r;
+    background-color: var(--whatsapp-sidebar-bg);
+    border-color: #DBDBDB;
+}
+
+/* 5. Chat Area */
+.whatsapp-chat {
+    @apply flex-1 flex flex-col;
+    background-color: var(--whatsapp-chat-bg);
+}
+
+/* 6. Avatars */
+.whatsapp-avatar {
+    @apply w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-lg uppercase;
+    background-color: var(--whatsapp-primary);
+}
+
+.whatsapp-avatar-sm {
+    @apply w-8 h-8 text-sm;
+}
+
+/* 7. Status Dot */
+.whatsapp-status-dot {
+    @apply w-2.5 h-2.5 rounded-full inline-block;
+}
+
+.whatsapp-status-dot.online {
+    background-color: var(--whatsapp-secondary);
+}
+
+.whatsapp-status-dot.offline {
+    background-color: #C0C0C0;
+}
+
+/* 8. Message Bubbles */
+.message {
+    @apply flex mb-1 max-w-[80%];
+}
+
+.message-sent {
+    @apply ml-auto justify-end;
+}
+
+.message-received {
+    @apply justify-start;
+}
+
+.message-bubble {
+    @apply px-4 py-2 rounded-xl text-sm leading-relaxed shadow-sm;
+    word-wrap: break-word;
+    max-width: 100%;
+}
+
+.message-sent .message-bubble {
+    @apply rounded-tr-[4px];
+    background-color: var(--whatsapp-sent-bubble);
+}
+
+.message-received .message-bubble {
+    @apply rounded-tl-[4px];
+    background-color: var(--whatsapp-received-bubble);
+}
+
+.message-meta {
+    @apply text-[10px] text-gray-400 mt-1 flex items-center gap-1.5;
+}
+
+/* 9. Group List Items */
+.whatsapp-group-item {
+    @apply flex items-center px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors no-underline text-inherit;
+}
+
+.whatsapp-group-item {
+    margin-bottom: 4px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.whatsapp-group-item:last-child {
+    border-bottom: none;
+}
+
+.whatsapp-group-item:hover {
+    @apply bg-gray-100;
+}
+
+.whatsapp-group-item.active {
+    @apply bg-green-50 border-l-4 border-l-green-700;
+    border-left-color: var(--whatsapp-primary);
+}
+
+/* 10. Send Button */
+.btn-send {
+    @apply w-11 h-11 rounded-full flex items-center justify-center border-none cursor-pointer transition-colors text-white;
+    background-color: var(--whatsapp-primary);
+}
+
+.btn-send:hover {
+    background-color: var(--whatsapp-primary-light);
+}
+
+/* 11. Typing Indicator */
+.typing-indicator .dot {
+    @apply w-1.5 h-1.5 rounded-full inline-block;
+    background-color: #8A8A8A;
+    animation: typing 1.2s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+}
+
+/* 12. Message Fade-in Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* 13. Scrollbar Styling */
+::-webkit-scrollbar { @apply w-1.5; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply rounded-full bg-gray-300; }
+::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+
+/* 14. Chat Background Pattern */
+.whatsapp-messages {
+    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%23E5DDD5"/%3E%3C/svg%3E');
+    background-size: 100px 100px;
+}
+
+/* 15. Input Area */
+.whatsapp-input-area {
+    @apply bg-gray-100 px-5 py-3 border-t flex items-center gap-3;
+    background-color: var(--whatsapp-header-bg);
+    border-color: #DBDBDB;
+}
+
+.whatsapp-input-area input,
+.whatsapp-input-area textarea {
+    @apply flex-1 px-4 py-2.5 border-none rounded-full text-sm outline-none resize-none;
+    background-color: white;
+}
+
+/* 16. Modal Styles */
+.whatsapp-modal {
+    @apply border-none rounded-xl p-0 max-w-[500px] w-full;
+}
+
+.whatsapp-modal::backdrop {
+    @apply bg-black/40;
+}
+
+/* LinkedIn-Style Toggle */
+.toggle-replies-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.children-container {
+    transition: opacity 0.2s ease;
+}
+
+.children-container.hidden {
+    display: none;
+}
+
+.children-container:not(.hidden) {
+    display: block;
+    opacity: 1;
+}
+
+/* Hover effect on toggle */
+.toggle-replies-btn:hover {
+    color: #0a66c2; /* LinkedIn blue */
+}
+
+.toggle-replies-btn:hover svg {
+    color: #0a66c2;
+}
+
+/* Depth-based background */
+.post-card[data-depth="0"] { background: #ffffff; }
+.post-card[data-depth="1"] { background: #fafafa; }
+.post-card[data-depth="2"] { background: #f5f5f5; }
+.post-card[data-depth="3"] { background: #f0f0f0; }
+
+.toggle-replies-btn svg {
+    transition: transform 0.2s ease;
+}
+.children-container.hidden { display: none; }
+.children-container:not(.hidden) { display: block; }

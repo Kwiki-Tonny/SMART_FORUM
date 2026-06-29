@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<VBox alignment="CENTER" spacing="20" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.smartforum.controllers.LoginController">
+    <padding>
+        <Insets top="40" right="40" bottom="40" left="40" />
+    </padding>
+
+    <Text text="Smart Forum" styleClass="title" />
+    <Text text="Sign in to continue" styleClass="subtitle" />
+
+    <TextField fx:id="emailField" promptText="Email" />
+    <PasswordField fx:id="passwordField" promptText="Password" />
+    <Label fx:id="statusLabel" styleClass="status" />
+
+    <Button text="Sign In" onAction="#handleLogin" styleClass="primary-btn" />
+
+    <Hyperlink text="Don't have an account? Sign up" onAction="#handleRegister" />
+</VBox>

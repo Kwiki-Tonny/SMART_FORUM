@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.smartforum.controllers.DashboardController">
+    
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox prefWidth="280" styleClass="sidebar">
+            <padding><Insets top="20" right="10" bottom="10" left="10" /></padding>
+            
+            <!-- Header with status dot -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label style="-fx-font-size: 16px; -fx-font-weight: bold;">Smart Forum</Label>
+                <Region HBox.hgrow="ALWAYS" />
+                <Circle fx:id="statusDot" radius="6" styleClass="status-dot, online" />
+                <Label fx:id="statusLabel" style="-fx-font-size: 12px; -fx-text-fill: #888;">Online</Label>
+                <Button text="Sync" onAction="#handleSync" styleClass="primary-btn" />
+            </HBox>
+            
+            <TextField promptText="Search groups..." fx:id="searchField" styleClass="text-field" />
+            <ListView fx:id="groupListView" VBox.vgrow="ALWAYS" styleClass="group-list" />
+            
+            <!-- Logout button -->
+            <Button text="Logout" onAction="#handleLogout" style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-background-radius: 4px; -fx-margin: 10 0 0 0;" />
+        </VBox>
+    </left>
+    
+    <!-- RIGHT PANEL -->
+    <center>
+        <VBox style="-fx-background-color: white;">
+            <!-- Header -->
+            <HBox style="-fx-padding: 15; -fx-border-color: #ddd; -fx-border-width: 0 0 1 0;" alignment="CENTER_LEFT">
+                <Button fx:id="backButton" text="← Back" onAction="#handleBack" visible="false" styleClass="back-btn" />
+                <Label fx:id="groupTitleLabel" text="Select a group" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 0 0 0 10;" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button text="New Topic" onAction="#handleNewTopic" styleClass="primary-btn" />
+            </HBox>
+            
+            <!-- Topic List -->
+            <ListView fx:id="topicListView" VBox.vgrow="ALWAYS" styleClass="topic-list" />
+            
+            <!-- Post List (hidden initially) -->
+            <ListView fx:id="postListView" VBox.vgrow="ALWAYS" visible="false" managed="false" styleClass="post-list" />
+            
+            <!-- Status bar -->
+            <Label fx:id="bottomStatusLabel" style="-fx-padding: 5 15; -fx-background-color: #f4f4f4; -fx-text-fill: #888; -fx-font-size: 12px;" text="Ready" />
+        </VBox>
+    </center>
+</BorderPane>
