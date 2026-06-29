@@ -1,0 +1,13 @@
+vendor/
+node_modules/
+.git/
+.env
+*.log
+storage/*.log
+tests/
+.editorconfig
+.gitattributes
+.gitignore
+Dockerfile
+.dockerignore
+README.md
