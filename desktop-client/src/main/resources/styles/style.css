@@ -223,6 +223,7 @@
     -fx-margin: 4px 0 4px 20px;
 }
 
+/* ListView styling */
 .list-view {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -231,4 +232,16 @@
 .list-cell {
     -fx-background-color: transparent;
     -fx-padding: 4px 0;
+}
+
+/* ===== FIX: Selection Highlight ===== */
+.list-cell:hover {
+    -fx-background-color: #f0f0f0;
+}
+.list-cell:selected {
+    -fx-background-color: #075E54;
+    -fx-text-fill: white;
+}
+.list-cell:selected .label {
+    -fx-text-fill: white;
 }
