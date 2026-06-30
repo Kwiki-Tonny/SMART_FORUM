@@ -144,6 +144,15 @@ Route::middleware(['auth', 'approved'])->group(function () {
     });
 
     // ============================================
+    // FALLBACK POLLING – Check for new posts
+    // ============================================
+    Route::get('/check-new-posts', function () {
+        return response()->json([
+            'trigger' => session('new_post_trigger', 0)
+        ]);
+    })->middleware('auth')->name('check.posts');
+
+    // ============================================
     // ADMIN ROUTES (only for role:admin)
     // ============================================
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
