@@ -7,7 +7,14 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 
 import java.io.IOException;
 import java.util.List;
@@ -40,6 +47,87 @@ public class DashboardController {
         topicListView.setItems(topics);
         postListView.setItems(posts);
 
+        // --- Topic List Cell Factory (WhatsApp style) ---
+        topicListView.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                Label label = new Label(item);
+                label.setStyle("-fx-font-weight: 500; -fx-font-size: 14px; -fx-padding: 8 0; -fx-text-fill: #075E54;");
+                setGraphic(label);
+            }
+        });
+
+        // --- Post List Cell Factory (X-style thread) with wrapping ---
+        postListView.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                // Parse "user: content"
+                String[] parts = item.split(": ", 2);
+                String author = parts.length > 0 ? parts[0] : "Unknown";
+                String content = parts.length > 1 ? parts[1] : item;
+
+                // --- Card container ---
+                VBox card = new VBox(4);
+                card.getStyleClass().add("post-card");
+                card.setMaxWidth(Double.MAX_VALUE);
+
+                // --- Header: Avatar + Author + Timestamp ---
+                HBox header = new HBox(8);
+                header.getStyleClass().add("header");
+
+                // Avatar (StackPane with circle background and initial)
+                StackPane avatarPane = new StackPane();
+                avatarPane.setPrefSize(32, 32);
+                avatarPane.setStyle("-fx-background-radius: 50%; -fx-background-color: #075E54; -fx-alignment: center;");
+                Label avatarLabel = new Label(author.substring(0, 1).toUpperCase());
+                avatarLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
+                avatarPane.getChildren().add(avatarLabel);
+
+                Label authorLabel = new Label(author);
+                authorLabel.getStyleClass().add("author-name");
+
+                Label timestampLabel = new Label("Just now"); // placeholder
+                timestampLabel.getStyleClass().add("timestamp");
+
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+                header.getChildren().addAll(avatarPane, authorLabel, timestampLabel);
+
+                // --- Content (wrapped) ---
+                Label contentLabel = new Label(content);
+                contentLabel.getStyleClass().add("content");
+                contentLabel.setWrapText(true);
+                contentLabel.setMaxWidth(Double.MAX_VALUE);
+
+                // --- Actions (placeholders) ---
+                HBox actions = new HBox(20);
+                actions.getStyleClass().add("actions");
+                Button likeBtn = new Button("❤️ Like");
+                likeBtn.getStyleClass().add("action-btn");
+                Button replyBtn = new Button("💬 Reply");
+                replyBtn.getStyleClass().add("action-btn");
+                Button shareBtn = new Button("🔗 Share");
+                shareBtn.getStyleClass().add("action-btn");
+                actions.getChildren().addAll(likeBtn, replyBtn, shareBtn);
+
+                card.getChildren().addAll(header, contentLabel, actions);
+                setGraphic(card);
+            }
+        });
+
         // Load groups
         loadGroups();
 
@@ -71,6 +159,8 @@ public class DashboardController {
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
     }
+
+    // ---- Data loading methods (unchanged) ----
 
     private void loadGroups() {
         bottomStatusLabel.setText("Loading groups...");
