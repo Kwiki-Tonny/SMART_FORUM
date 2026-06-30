@@ -1,6 +1,7 @@
 package com.smartforum.controllers;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.smartforum.App;
 import com.smartforum.services.ApiClient;
+import com.smartforum.services.DatabaseHelper;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -55,11 +57,16 @@ public class DashboardController {
     private Map<String, Color> groupColors = new HashMap<>();
     private Random random = new Random();
 
+    private DatabaseHelper db = new DatabaseHelper();
+
     @FXML
     public void initialize() {
         groupListView.setItems(groups);
         topicListView.setItems(topics);
         postListView.setItems(posts);
+
+        // Disable horizontal scroll bar on post list (via CSS – we keep the line removed)
+        // CSS will handle it.
 
         // ---- Group Cell Factory (Telegram style) ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
@@ -120,7 +127,7 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X-style) with wrapping ----
+        // ---- Post List Cell Factory (X-style) ----
         postListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -240,64 +247,114 @@ public class DashboardController {
         isShowingPosts = false;
     }
 
-    // ---- Data loading methods ----
+    // ---- Data loading methods (with caching) ----
 
     private void loadGroups() {
-        bottomStatusLabel.setText("Loading groups...");
+        // Load from cache first
+        List<Map<String, Object>> cached = db.getGroups();
+        if (!cached.isEmpty()) {
+            List<String> groupStrings = new ArrayList<>();
+            for (Map<String, Object> g : cached) {
+                groupStrings.add(g.get("id") + ": " + g.get("name"));
+            }
+            Platform.runLater(() -> {
+                groups.setAll(groupStrings);
+                bottomStatusLabel.setText("Groups loaded from cache");
+            });
+        }
+
+        // Fetch from API
+        bottomStatusLabel.setText("Refreshing groups...");
         new Thread(() -> {
             try {
                 String response = ApiClient.get("/groups");
                 JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
-                List<String> groupStrings = new java.util.ArrayList<>();
+                List<Map<String, Object>> groupList = new ArrayList<>();
+                List<String> groupStrings = new ArrayList<>();
                 for (JsonElement el : jsonArray) {
                     JsonObject obj = el.getAsJsonObject();
                     int id = obj.get("id").getAsInt();
                     String name = obj.get("name").getAsString();
+                    String description = obj.get("description") != null ? obj.get("description").getAsString() : "";
+                    String updatedAt = obj.get("updated_at") != null ? obj.get("updated_at").getAsString() : "";
                     groupStrings.add(id + ": " + name);
+
+                    Map<String, Object> g = new HashMap<>();
+                    g.put("id", id);
+                    g.put("name", name);
+                    g.put("description", description);
+                    g.put("updated_at", updatedAt);
+                    groupList.add(g);
                 }
+                db.saveGroups(groupList);
                 Platform.runLater(() -> {
                     groups.setAll(groupStrings);
-                    bottomStatusLabel.setText("Groups loaded");
+                    bottomStatusLabel.setText("Groups refreshed from API");
                 });
             } catch (IOException e) {
-                Platform.runLater(() -> bottomStatusLabel.setText("Error loading groups: " + e.getMessage()));
+                Platform.runLater(() -> bottomStatusLabel.setText("Error refreshing groups: " + e.getMessage()));
                 e.printStackTrace();
             }
         }).start();
     }
 
     private void loadTopics(int groupId) {
+        // Cancel previous load
         loadingTopics.set(true);
         loadingGroupId = groupId;
-        bottomStatusLabel.setText("Loading topics...");
+
+        // Load from cache
+        List<Map<String, Object>> cached = db.getTopicsForGroup(groupId);
+        if (!cached.isEmpty()) {
+            List<String> topicStrings = new ArrayList<>();
+            for (Map<String, Object> t : cached) {
+                topicStrings.add(t.get("id") + ": " + t.get("title"));
+            }
+            Platform.runLater(() -> {
+                topics.setAll(topicStrings);
+                bottomStatusLabel.setText("Topics loaded from cache");
+            });
+        }
+
+        // Fetch from API
+        bottomStatusLabel.setText("Refreshing topics...");
         new Thread(() -> {
             final int requestGroupId = groupId;
             try {
                 String response = ApiClient.get("/groups/" + groupId + "/topics");
                 JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
-                List<String> topicStrings = new java.util.ArrayList<>();
+                List<Map<String, Object>> topicList = new ArrayList<>();
+                List<String> topicStrings = new ArrayList<>();
                 for (JsonElement el : jsonArray) {
                     JsonObject obj = el.getAsJsonObject();
                     int id = obj.get("id").getAsInt();
                     String title = obj.get("title").getAsString();
                     topicStrings.add(id + ": " + title);
+
+                    Map<String, Object> t = new HashMap<>();
+                    t.put("id", id);
+                    t.put("title", title);
+                    t.put("body", obj.get("body") != null ? obj.get("body").getAsString() : "");
+                    t.put("creator_id", obj.get("creator_id") != null ? obj.get("creator_id").getAsInt() : null);
+                    t.put("creator_name", obj.get("creator") != null && obj.get("creator").getAsJsonObject().has("name") ?
+                            obj.get("creator").getAsJsonObject().get("name").getAsString() : "");
+                    t.put("ml_category", obj.get("ml_category") != null ? obj.get("ml_category").getAsString() : "");
+                    t.put("created_at", obj.get("created_at") != null ? obj.get("created_at").getAsString() : "");
+                    t.put("updated_at", obj.get("updated_at") != null ? obj.get("updated_at").getAsString() : "");
+                    topicList.add(t);
                 }
-                System.out.println("Topics loaded for group " + groupId + ": " + topicStrings.size());
+                db.saveTopicsForGroup(groupId, topicList);
                 if (loadingGroupId == requestGroupId && loadingTopics.get()) {
                     Platform.runLater(() -> {
                         topics.setAll(topicStrings);
-                        topicListView.setVisible(true);
-                        topicListView.setManaged(true);
-                        postListView.setVisible(false);
-                        postListView.setManaged(false);
-                        bottomStatusLabel.setText("Topics loaded (" + topics.size() + ")");
+                        bottomStatusLabel.setText("Topics refreshed from API");
                         loadingTopics.set(false);
                     });
                 }
             } catch (IOException e) {
                 if (loadingGroupId == requestGroupId) {
                     Platform.runLater(() -> {
-                        bottomStatusLabel.setText("Error loading topics: " + e.getMessage());
+                        bottomStatusLabel.setText("Error refreshing topics: " + e.getMessage());
                         loadingTopics.set(false);
                     });
                 }
@@ -314,27 +371,61 @@ public class DashboardController {
         postListView.setVisible(true);
         postListView.setManaged(true);
 
-        bottomStatusLabel.setText("Loading posts...");
+        // Load from cache
+        List<Map<String, Object>> cached = db.getPostsForTopic(topicId);
+        if (!cached.isEmpty()) {
+            List<String> postStrings = new ArrayList<>();
+            for (Map<String, Object> p : cached) {
+                String userName = (String) p.get("user_name");
+                String content = (String) p.get("content");
+                postStrings.add(userName + ": " + content);
+            }
+            Platform.runLater(() -> {
+                posts.setAll(postStrings);
+                bottomStatusLabel.setText("Posts loaded from cache");
+            });
+        }
+
+        // Fetch from API
+        bottomStatusLabel.setText("Refreshing posts...");
         new Thread(() -> {
             try {
                 String response = ApiClient.get("/groups/" + currentGroupId + "/topics/" + topicId);
                 JsonObject obj = JsonParser.parseString(response).getAsJsonObject();
                 JsonArray postsArray = obj.getAsJsonArray("posts");
-                List<String> postStrings = new java.util.ArrayList<>();
+                List<Map<String, Object>> postList = new ArrayList<>();
+                List<String> postStrings = new ArrayList<>();
                 for (JsonElement el : postsArray) {
                     JsonObject p = el.getAsJsonObject();
+                    int id = p.get("id").getAsInt();
                     String content = p.get("content").getAsString();
                     String userName = p.get("user") != null && p.get("user").getAsJsonObject().has("name") ?
                             p.get("user").getAsJsonObject().get("name").getAsString() : "Unknown";
+                    Integer parentId = p.get("parent_id") != null && !p.get("parent_id").isJsonNull() ? p.get("parent_id").getAsInt() : null;
+                    String createdAt = p.get("created_at") != null ? p.get("created_at").getAsString() : "";
+                    String updatedAt = p.get("updated_at") != null ? p.get("updated_at").getAsString() : "";
+                    Boolean isPrivate = p.get("is_private") != null && p.get("is_private").getAsBoolean();
+
                     postStrings.add(userName + ": " + content);
+
+                    Map<String, Object> post = new HashMap<>();
+                    post.put("id", id);
+                    post.put("user_id", p.get("user_id") != null ? p.get("user_id").getAsInt() : null);
+                    post.put("user_name", userName);
+                    post.put("content", content);
+                    post.put("is_private", isPrivate);
+                    post.put("parent_id", parentId);
+                    post.put("created_at", createdAt);
+                    post.put("updated_at", updatedAt);
+                    postList.add(post);
                 }
-                System.out.println("Posts loaded for topic " + topicId + ": " + postStrings.size());
+                db.savePostsForTopic(topicId, postList);
                 Platform.runLater(() -> {
                     posts.setAll(postStrings);
-                    bottomStatusLabel.setText("Posts loaded (" + posts.size() + ")");
+                    bottomStatusLabel.setText("Posts refreshed from API");
                 });
             } catch (IOException e) {
-                Platform.runLater(() -> bottomStatusLabel.setText("Error loading posts: " + e.getMessage()));
+                Platform.runLater(() -> bottomStatusLabel.setText("Error refreshing posts: " + e.getMessage()));
                 e.printStackTrace();
             }
         }).start();
@@ -355,6 +446,7 @@ public class DashboardController {
 
     @FXML
     public void handleLogout() throws Exception {
+        db.clearAllCaches();
         ApiClient.setToken(null);
         App.showLoginScreen();
     }
