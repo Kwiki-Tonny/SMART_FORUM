@@ -7,17 +7,15 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DashboardController {
@@ -37,9 +35,11 @@ public class DashboardController {
     private int currentTopicId = -1;
     private boolean isShowingPosts = false;
 
-    // Cancellation flag for topic loading
     private AtomicBoolean loadingTopics = new AtomicBoolean(false);
     private int loadingGroupId = -1;
+
+    private java.util.Map<String, Color> groupColors = new java.util.HashMap<>();
+    private Random random = new Random();
 
     @FXML
     public void initialize() {
@@ -47,7 +47,50 @@ public class DashboardController {
         topicListView.setItems(topics);
         postListView.setItems(posts);
 
-        // --- Topic List Cell Factory (WhatsApp style) ---
+        // ---- Group Cell Factory (Telegram style) ----
+        groupListView.setCellFactory(lv -> new ListCell<String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                String[] parts = item.split(": ", 2);
+                String name = parts.length > 1 ? parts[1] : item;
+                String initial = name.substring(0, 1).toUpperCase();
+
+                Color color = groupColors.get(item);
+                if (color == null) {
+                    int hue = Math.abs(name.hashCode()) % 360;
+                    color = Color.hsb(hue, 0.7, 0.7);
+                    groupColors.put(item, color);
+                }
+
+                HBox hbox = new HBox(10);
+                hbox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                hbox.setPadding(new Insets(8, 12, 8, 12));
+
+                Circle avatar = new Circle(20);
+                avatar.setFill(color);
+                avatar.setStroke(Color.WHITE);
+                avatar.setStrokeWidth(1);
+
+                Label initialLabel = new Label(initial);
+                initialLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
+                StackPane avatarPane = new StackPane(avatar, initialLabel);
+                avatarPane.setPrefSize(40, 40);
+
+                Label nameLabel = new Label(name);
+                nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 500; -fx-text-fill: #1A1A1A;");
+
+                hbox.getChildren().addAll(avatarPane, nameLabel);
+                setGraphic(hbox);
+            }
+        });
+
+        // ---- Topic List Cell Factory ----
         topicListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -63,8 +106,12 @@ public class DashboardController {
             }
         });
 
-        // --- Post List Cell Factory (X-style thread) with wrapping ---
+        // ---- Post List Cell Factory (X-style) ----
         postListView.setCellFactory(lv -> new ListCell<String>() {
+            {
+                prefWidthProperty().bind(getListView().widthProperty());
+            }
+
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -73,21 +120,18 @@ public class DashboardController {
                     setGraphic(null);
                     return;
                 }
-                // Parse "user: content"
+
                 String[] parts = item.split(": ", 2);
                 String author = parts.length > 0 ? parts[0] : "Unknown";
                 String content = parts.length > 1 ? parts[1] : item;
 
-                // --- Card container ---
                 VBox card = new VBox(4);
-                card.getStyleClass().add("post-card");
                 card.setMaxWidth(Double.MAX_VALUE);
+                card.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0; -fx-padding: 12 15;");
 
-                // --- Header: Avatar + Author + Timestamp ---
                 HBox header = new HBox(8);
-                header.getStyleClass().add("header");
+                header.setStyle("-fx-alignment: center-left;");
 
-                // Avatar (StackPane with circle background and initial)
                 StackPane avatarPane = new StackPane();
                 avatarPane.setPrefSize(32, 32);
                 avatarPane.setStyle("-fx-background-radius: 50%; -fx-background-color: #075E54; -fx-alignment: center;");
@@ -96,31 +140,32 @@ public class DashboardController {
                 avatarPane.getChildren().add(avatarLabel);
 
                 Label authorLabel = new Label(author);
-                authorLabel.getStyleClass().add("author-name");
+                authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0F1419;");
 
-                Label timestampLabel = new Label("Just now"); // placeholder
-                timestampLabel.getStyleClass().add("timestamp");
+                Label timestampLabel = new Label("Just now");
+                timestampLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #8899A6;");
 
                 Region spacer = new Region();
                 HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
                 header.getChildren().addAll(avatarPane, authorLabel, timestampLabel);
 
-                // --- Content (wrapped) ---
                 Label contentLabel = new Label(content);
-                contentLabel.getStyleClass().add("content");
                 contentLabel.setWrapText(true);
                 contentLabel.setMaxWidth(Double.MAX_VALUE);
+                contentLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #0F1419; -fx-padding: 4 0 8 0;");
 
-                // --- Actions (placeholders) ---
                 HBox actions = new HBox(20);
-                actions.getStyleClass().add("actions");
-                Button likeBtn = new Button("❤️ Like");
-                likeBtn.getStyleClass().add("action-btn");
-                Button replyBtn = new Button("💬 Reply");
-                replyBtn.getStyleClass().add("action-btn");
+                actions.setStyle("-fx-padding: 4 0 0 0;");
+                Button likeBtn = new Button("👍 Like");
+                likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #8899A6; -fx-font-size: 13px; -fx-cursor: hand; -fx-padding: 0;");
+                likeBtn.setOnAction(e -> System.out.println("Like clicked"));
+                Button replyBtn = new Button("Reply");
+                replyBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #8899A6; -fx-font-size: 13px; -fx-cursor: hand; -fx-padding: 0;");
+                replyBtn.setOnAction(e -> System.out.println("Reply clicked"));
                 Button shareBtn = new Button("🔗 Share");
-                shareBtn.getStyleClass().add("action-btn");
+                shareBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #8899A6; -fx-font-size: 13px; -fx-cursor: hand; -fx-padding: 0;");
+                shareBtn.setOnAction(e -> System.out.println("Share clicked"));
                 actions.getChildren().addAll(likeBtn, replyBtn, shareBtn);
 
                 card.getChildren().addAll(header, contentLabel, actions);
@@ -128,39 +173,60 @@ public class DashboardController {
             }
         });
 
-        // Load groups
+        // ---- Load groups ----
         loadGroups();
 
-        // Group selection listener
+        // ---- Listeners ----
         groupListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !isShowingPosts) {
+            if (newVal != null) {
                 String[] parts = newVal.split(": ", 2);
                 if (parts.length == 2) {
-                    currentGroupId = Integer.parseInt(parts[0]);
+                    int newGroupId = Integer.parseInt(parts[0]);
                     String groupName = parts[1];
+
+                    System.out.println("Group clicked: " + groupName + " (ID: " + newGroupId + ")");
+
+                    // If currently viewing posts, switch back to topics view
+                    if (isShowingPosts) {
+                        isShowingPosts = false;
+                        backButton.setVisible(false);
+                        topicListView.setVisible(true);
+                        topicListView.setManaged(true);
+                        postListView.setVisible(false);
+                        postListView.setManaged(false);
+                        currentTopicId = -1;
+                    }
+
+                    currentGroupId = newGroupId;
                     groupTitleLabel.setText(groupName);
                     loadTopics(currentGroupId);
                 }
             }
         });
 
-        // Topic selection listener
         topicListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 String[] parts = newVal.split(": ", 2);
                 if (parts.length == 2) {
                     currentTopicId = Integer.parseInt(parts[0]);
+                    System.out.println("Topic clicked: " + parts[1] + " (ID: " + currentTopicId + ")");
                     showPosts(currentTopicId);
                 }
             }
         });
 
-        // Back button
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
+
+        // Initially, ensure the topic list is visible and post list hidden
+        topicListView.setVisible(true);
+        topicListView.setManaged(true);
+        postListView.setVisible(false);
+        postListView.setManaged(false);
+        isShowingPosts = false;
     }
 
-    // ---- Data loading methods (unchanged) ----
+    // ---- Data loading methods ----
 
     private void loadGroups() {
         bottomStatusLabel.setText("Loading groups...");
@@ -187,10 +253,8 @@ public class DashboardController {
     }
 
     private void loadTopics(int groupId) {
-        // Cancel any ongoing topic load
         loadingTopics.set(true);
         loadingGroupId = groupId;
-
         bottomStatusLabel.setText("Loading topics...");
         new Thread(() -> {
             final int requestGroupId = groupId;
@@ -204,11 +268,16 @@ public class DashboardController {
                     String title = obj.get("title").getAsString();
                     topicStrings.add(id + ": " + title);
                 }
-                // Only update if this is the latest request and not cancelled
+                System.out.println("Topics loaded for group " + groupId + ": " + topicStrings.size());
                 if (loadingGroupId == requestGroupId && loadingTopics.get()) {
                     Platform.runLater(() -> {
                         topics.setAll(topicStrings);
-                        bottomStatusLabel.setText("Topics loaded");
+                        // Ensure visibility
+                        topicListView.setVisible(true);
+                        topicListView.setManaged(true);
+                        postListView.setVisible(false);
+                        postListView.setManaged(false);
+                        bottomStatusLabel.setText("Topics loaded (" + topics.size() + ")");
                         loadingTopics.set(false);
                     });
                 }
@@ -246,9 +315,10 @@ public class DashboardController {
                             p.get("user").getAsJsonObject().get("name").getAsString() : "Unknown";
                     postStrings.add(userName + ": " + content);
                 }
+                System.out.println("Posts loaded for topic " + topicId + ": " + postStrings.size());
                 Platform.runLater(() -> {
                     posts.setAll(postStrings);
-                    bottomStatusLabel.setText("Posts loaded");
+                    bottomStatusLabel.setText("Posts loaded (" + posts.size() + ")");
                 });
             } catch (IOException e) {
                 Platform.runLater(() -> bottomStatusLabel.setText("Error loading posts: " + e.getMessage()));
