@@ -47,7 +47,10 @@ public class DashboardController {
         topicListView.setItems(topics);
         postListView.setItems(posts);
 
-        // ---- Group Cell Factory (Telegram style) ----
+        // ---- Disable horizontal scroll bar on post list ----
+        postListView.setHorizontalScrollBarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+        // ---- Group Cell Factory ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -106,7 +109,7 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X-style) - FIXED ----
+        // ---- Post List Cell Factory (X-style) ----
         postListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -117,10 +120,12 @@ public class DashboardController {
                     return;
                 }
 
-                // Bind cell width to list width (if not already bound)
+                // Bind cell width to list width
                 if (getListView() != null && !prefWidthProperty().isBound()) {
                     prefWidthProperty().bind(getListView().widthProperty());
                 }
+                // Ensure cell fills width
+                setMaxWidth(Double.MAX_VALUE);
 
                 String[] parts = item.split(": ", 2);
                 String author = parts.length > 0 ? parts[0] : "Unknown";
@@ -147,7 +152,7 @@ public class DashboardController {
                 timestampLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #8899A6;");
 
                 Region spacer = new Region();
-                HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+                HBox.setHgrow(spacer, Priority.ALWAYS);
 
                 header.getChildren().addAll(avatarPane, authorLabel, timestampLabel);
 
@@ -184,7 +189,6 @@ public class DashboardController {
                 if (parts.length == 2) {
                     int newGroupId = Integer.parseInt(parts[0]);
                     String groupName = parts[1];
-
                     System.out.println("Group clicked: " + groupName + " (ID: " + newGroupId + ")");
 
                     if (isShowingPosts) {
@@ -226,7 +230,7 @@ public class DashboardController {
         isShowingPosts = false;
     }
 
-    // ---- Data loading methods ----
+    // ---- Data loading methods (unchanged) ----
 
     private void loadGroups() {
         bottomStatusLabel.setText("Loading groups...");
