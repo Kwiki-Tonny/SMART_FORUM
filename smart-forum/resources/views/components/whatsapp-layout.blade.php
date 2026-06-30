@@ -82,9 +82,11 @@
                 <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer transition" 
                      id="profileToggle" onclick="toggleProfileMenu()">
                     <div class="flex items-center gap-3">
-                        <!-- Perfectly round avatar -->
-                        <div class="w-10 h-10 rounded-full overflow-hidden bg-[#075E54] flex items-center justify-center text-white text-sm font-semibold uppercase flex-shrink-0">
-                            {{ auth()->user()->name[0] ?? 'U' }}
+                        <!-- Avatar - perfectly round with inline styles -->
+                        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background-color: #075E54; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="color: white; font-weight: 600; font-size: 16px; text-transform: uppercase;">
+                                {{ auth()->user()->name[0] ?? 'U' }}
+                            </span>
                         </div>
                         <div>
                             <div class="text-sm font-medium text-gray-800">{{ auth()->user()->name }}</div>
