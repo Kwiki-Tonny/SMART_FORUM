@@ -74,7 +74,7 @@
     -fx-background-color: #d32f2f;
 }
 
-/* Group list items */
+/* Group list items (WhatsApp style) */
 .group-item {
     -fx-padding: 12px 16px;
     -fx-border-color: #f0f0f0;
@@ -93,7 +93,7 @@
     -fx-text-fill: #8a8a8a;
 }
 
-/* Topic list items */
+/* Topic list items (WhatsApp style) */
 .topic-item {
     -fx-padding: 12px 15px;
     -fx-border-color: #f0f0f0;
@@ -109,21 +109,6 @@
     -fx-text-fill: #075E54;
 }
 .topic-item .meta {
-    -fx-font-size: 11px;
-    -fx-text-fill: #8a8a8a;
-}
-
-/* Post list items (nested replies – simple flat) */
-.post-item {
-    -fx-padding: 10px 15px;
-    -fx-border-color: #f0f0f0;
-    -fx-border-width: 0 0 1px 0;
-}
-.post-item .content {
-    -fx-font-size: 14px;
-    -fx-text-fill: #333;
-}
-.post-item .meta {
     -fx-font-size: 11px;
     -fx-text-fill: #8a8a8a;
 }
@@ -161,66 +146,62 @@
     -fx-background-color: #a0a0a0;
 }
 
-/* --- Post / Topic Cards (LinkedIn style) --- */
-.card {
+/* --- X (Twitter) Style Post Cards --- */
+.post-card {
     -fx-background-color: white;
     -fx-border-color: #e0e0e0;
-    -fx-border-radius: 8px;
-    -fx-padding: 12px 15px;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);
-    -fx-spacing: 6px;
-    -fx-margin: 4px 0;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 12 15;
+    -fx-spacing: 4;
 }
 
-.card .author {
+.post-card .header {
+    -fx-spacing: 8;
+    -fx-alignment: center-left;
+}
+
+.post-card .avatar {
+    -fx-background-radius: 50%;
+    -fx-pref-width: 32px;
+    -fx-pref-height: 32px;
+    -fx-alignment: center;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-text-fill: white;
+}
+
+.post-card .author-name {
     -fx-font-weight: bold;
     -fx-font-size: 14px;
-    -fx-text-fill: #333;
+    -fx-text-fill: #0F1419;
 }
 
-.card .timestamp {
-    -fx-font-size: 11px;
-    -fx-text-fill: #8a8a8a;
+.post-card .timestamp {
+    -fx-font-size: 12px;
+    -fx-text-fill: #8899A6;
 }
 
-.card .title {
-    -fx-font-weight: 600;
-    -fx-font-size: 16px;
-    -fx-text-fill: #075E54;
-}
-
-.card .content {
+.post-card .content {
     -fx-font-size: 14px;
-    -fx-text-fill: #444;
+    -fx-text-fill: #0F1419;
     -fx-wrap-text: true;
+    -fx-padding: 4 0 8 0;
 }
 
-.card .meta {
-    -fx-font-size: 12px;
-    -fx-text-fill: #888;
+.post-card .actions {
+    -fx-spacing: 20;
+    -fx-padding: 4 0 0 0;
 }
 
-.card .actions {
-    -fx-spacing: 15px;
-    -fx-padding: 6px 0 0 0;
-}
-
-.card .actions .action-btn {
+.post-card .action-btn {
     -fx-background-color: transparent;
-    -fx-text-fill: #555;
-    -fx-font-size: 12px;
+    -fx-text-fill: #8899A6;
+    -fx-font-size: 13px;
     -fx-cursor: hand;
+    -fx-padding: 0;
 }
-.card .actions .action-btn:hover {
+.post-card .action-btn:hover {
     -fx-text-fill: #075E54;
-}
-
-/* Nested reply indentation */
-.reply-indent {
-    -fx-padding: 0 0 0 20px;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 0 0 0 2px;
-    -fx-margin: 4px 0 4px 20px;
 }
 
 /* ListView styling */
