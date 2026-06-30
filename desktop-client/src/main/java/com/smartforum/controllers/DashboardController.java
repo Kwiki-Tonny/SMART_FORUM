@@ -106,12 +106,8 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X-style) ----
+        // ---- Post List Cell Factory (X-style) - FIXED ----
         postListView.setCellFactory(lv -> new ListCell<String>() {
-            {
-                prefWidthProperty().bind(getListView().widthProperty());
-            }
-
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -119,6 +115,11 @@ public class DashboardController {
                     setText(null);
                     setGraphic(null);
                     return;
+                }
+
+                // Bind cell width to list width (if not already bound)
+                if (getListView() != null && !prefWidthProperty().isBound()) {
+                    prefWidthProperty().bind(getListView().widthProperty());
                 }
 
                 String[] parts = item.split(": ", 2);
@@ -186,7 +187,6 @@ public class DashboardController {
 
                     System.out.println("Group clicked: " + groupName + " (ID: " + newGroupId + ")");
 
-                    // If currently viewing posts, switch back to topics view
                     if (isShowingPosts) {
                         isShowingPosts = false;
                         backButton.setVisible(false);
@@ -218,7 +218,7 @@ public class DashboardController {
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
 
-        // Initially, ensure the topic list is visible and post list hidden
+        // Initial visibility
         topicListView.setVisible(true);
         topicListView.setManaged(true);
         postListView.setVisible(false);
@@ -272,7 +272,6 @@ public class DashboardController {
                 if (loadingGroupId == requestGroupId && loadingTopics.get()) {
                     Platform.runLater(() -> {
                         topics.setAll(topicStrings);
-                        // Ensure visibility
                         topicListView.setVisible(true);
                         topicListView.setManaged(true);
                         postListView.setVisible(false);
