@@ -27,7 +27,6 @@ public class App extends Application {
     }
 
     public static void showDashboard() throws Exception {
-        // Temporary: just show a message (will build later)
         FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/dashboard.fxml"));
         Pane root = loader.load();
         Scene scene = new Scene(root, 900, 600);

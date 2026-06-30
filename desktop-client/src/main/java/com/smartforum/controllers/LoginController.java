@@ -23,22 +23,33 @@ public class LoginController {
             return;
         }
 
-        try {
-            String token = ApiClient.login(email, password);
-            if (token != null) {
-                ApiClient.setToken(token);
-                App.showDashboard();
-            } else {
-                statusLabel.setText("Invalid credentials.");
+        new Thread(() -> {
+            try {
+                String token = ApiClient.login(email, password);
+                if (token != null) {
+                    ApiClient.setToken(token);
+                    javafx.application.Platform.runLater(() -> {
+                        try {
+                            App.showDashboard();
+                        } catch (Exception e) {
+                            statusLabel.setText("Error: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    javafx.application.Platform.runLater(() ->
+                        statusLabel.setText("Invalid credentials.")
+                    );
+                }
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    statusLabel.setText("Error: " + e.getMessage())
+                );
             }
-        } catch (Exception e) {
-            statusLabel.setText("Error: " + e.getMessage());
-        }
+        }).start();
     }
 
     @FXML
     public void handleRegister() {
-        // Open the web registration page (or show a message)
         statusLabel.setText("Please register via the web interface.");
     }
 }

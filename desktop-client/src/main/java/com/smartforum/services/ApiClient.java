@@ -1,19 +1,14 @@
 package com.smartforum.services;
 
-import java.io.IOException;
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.*;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import java.io.IOException;
 
 public class ApiClient {
 
-    // Change this to your Laravel API URL (use the actual IP or localhost)
+    // Change this to your Laravel API URL
     private static final String BASE_URL = "http://localhost:8000/api";
     private static final OkHttpClient client = new OkHttpClient();
     private static String token = null;
@@ -59,25 +54,6 @@ public class ApiClient {
                 .build();
         try (Response response = client.newCall(request).execute()) {
             return response.body().string();
-        }
-    }
-
-    /**
-     * Check connectivity to the server.
-     * Sends a lightweight HEAD request to the base API URL.
-     * @return true if server is reachable and responds successfully.
-     */
-    public static boolean ping() {
-        try {
-            Request request = new Request.Builder()
-                    .url(BASE_URL)  // or use BASE_URL + "/test" if you have a dedicated route
-                    .head()
-                    .build();
-            try (Response response = client.newCall(request).execute()) {
-                return response.isSuccessful();
-            }
-        } catch (IOException e) {
-            return false;
         }
     }
 }
