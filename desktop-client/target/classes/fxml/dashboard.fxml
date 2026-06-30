@@ -4,7 +4,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.smartforum.controllers.DashboardController">
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.smartforum.controllers.DashboardController"
+            stylesheets="@../styles/style.css">
     
     <!-- LEFT SIDEBAR -->
     <left>
@@ -17,11 +18,12 @@
             <!-- Group List -->
             <ListView fx:id="groupListView" VBox.vgrow="ALWAYS" />
             
-            <!-- Logout button with padding and margin for breathing room -->
-            <Button text="Logout" onAction="#handleLogout" 
-                    style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-background-radius: 4px; 
-                           -fx-padding: 12 20; -fx-font-weight: bold; -fx-font-size: 14px; 
-                           -fx-margin: 15 0 5 0; -fx-cursor: hand;" />
+            <!-- Logout button with proper spacing -->
+            <VBox spacing="15" style="-fx-padding: 15 0 5 0;">
+                <Button text="Logout" onAction="#handleLogout" 
+                        style="-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-background-radius: 4px; 
+                               -fx-padding: 12 20; -fx-font-weight: bold; -fx-font-size: 14px; -fx-cursor: hand;" />
+            </VBox>
         </VBox>
     </left>
     

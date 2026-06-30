@@ -146,6 +146,15 @@
     -fx-background-color: #a0a0a0;
 }
 
+/* Hide horizontal scroll bar on post list */
+#postListView .scroll-bar:horizontal {
+    -fx-opacity: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-padding: 0;
+}
+
 /* --- X (Twitter) Style Post Cards --- */
 .post-card {
     -fx-background-color: white;

@@ -1,22 +1,36 @@
 package com.smartforum.controllers;
 
-import com.google.gson.*;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.smartforum.App;
 import com.smartforum.services.ApiClient;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DashboardController {
 
@@ -38,7 +52,7 @@ public class DashboardController {
     private AtomicBoolean loadingTopics = new AtomicBoolean(false);
     private int loadingGroupId = -1;
 
-    private java.util.Map<String, Color> groupColors = new java.util.HashMap<>();
+    private Map<String, Color> groupColors = new HashMap<>();
     private Random random = new Random();
 
     @FXML
@@ -47,10 +61,7 @@ public class DashboardController {
         topicListView.setItems(topics);
         postListView.setItems(posts);
 
-        // ---- Disable horizontal scroll bar on post list ----
-        postListView.setHorizontalScrollBarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-
-        // ---- Group Cell Factory ----
+        // ---- Group Cell Factory (Telegram style) ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -109,7 +120,7 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X-style) ----
+        // ---- Post List Cell Factory (X-style) with wrapping ----
         postListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -124,7 +135,6 @@ public class DashboardController {
                 if (getListView() != null && !prefWidthProperty().isBound()) {
                     prefWidthProperty().bind(getListView().widthProperty());
                 }
-                // Ensure cell fills width
                 setMaxWidth(Double.MAX_VALUE);
 
                 String[] parts = item.split(": ", 2);
@@ -230,7 +240,7 @@ public class DashboardController {
         isShowingPosts = false;
     }
 
-    // ---- Data loading methods (unchanged) ----
+    // ---- Data loading methods ----
 
     private void loadGroups() {
         bottomStatusLabel.setText("Loading groups...");
