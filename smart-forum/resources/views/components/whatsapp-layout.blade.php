@@ -27,6 +27,10 @@
                    class="flex-1 text-center py-1.5 px-2 rounded-lg text-sm font-medium {{ request()->routeIs('dashboard') ? 'bg-[#075E54] text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                     Groups
                 </a>
+                <a href="{{ route('quizzes.index') }}" 
+                   class="flex-1 text-center py-1.5 px-2 rounded-lg text-sm font-medium {{ request()->routeIs('quizzes.*') ? 'bg-[#075E54] text-white' : 'text-gray-600 hover:bg-gray-100' }}">
+                    Quizzes
+                </a>
                 <a href="{{ route('analytics') }}" 
                    class="flex-1 text-center py-1.5 px-2 rounded-lg text-sm font-medium {{ request()->routeIs('analytics') ? 'bg-[#075E54] text-white' : 'text-gray-600 hover:bg-gray-100' }}">
                     Analytics

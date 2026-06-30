@@ -34,44 +34,6 @@ class GroupTopicController extends Controller
             return $topic->isVisibleTo($user);
         });
 
-        // ===== QUIZZES (available to take) =====
-        $quizzes = $group->quizzes()
-            ->where('is_published', true)
-            ->where(function ($q) {
-                $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
-            })
-            ->get()
-            ->filter(function ($quiz) use ($user) {
-                return $quiz->canUserTake($user);
-            });
-
-        $quizStatuses = $quizzes->map(function ($quiz) use ($user) {
-            $submission = $quiz->getUserSubmission($user);
-            return [
-                'quiz' => $quiz,
-                'submitted' => $submission && $submission->submitted_at !== null,
-                'submission' => $submission,
-            ];
-        });
-
-        // ===== MY QUIZZES (for lecturers/admins) =====
-        if ($user->isLecturer() || $user->isAdmin()) {
-            $myQuizzes = $group->quizzes()
-                ->where('created_by', $user->id)
-                ->withCount('submissions')
-                ->get()
-                ->map(function ($quiz) {
-                    $quiz->avg_score = $quiz->submissions()->whereNotNull('submitted_at')->avg('score') ?? 0;
-                    $quiz->submissions_count = $quiz->submissions()->whereNotNull('submitted_at')->count();
-                    return $quiz;
-                });
-        } else {
-            $myQuizzes = collect();
-        }
-
         // ===== GROUP MEMBERS (for private topic dropdown) =====
         $groupMembers = $group->users()
             ->where('users.id', '!=', $user->id)
@@ -80,9 +42,7 @@ class GroupTopicController extends Controller
         return view('topics.index', compact(
             'group',
             'topics',
-            'groupMembers',
-            'quizStatuses',
-            'myQuizzes'
+            'groupMembers'
         ));
     }
 

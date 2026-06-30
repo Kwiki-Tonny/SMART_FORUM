@@ -58,121 +58,171 @@ class QuizController extends Controller
             ->with('success', 'Quiz created successfully!');
     }
 
-        public function take(Group $group, Quiz $quiz)
-        {
-            $user = auth()->user();
+    public function take(Group $group, Quiz $quiz)
+    {
+        $user = auth()->user();
 
-            if ($quiz->group_id !== $group->id) {
-                abort(404);
+        if ($quiz->group_id !== $group->id) {
+            abort(404);
+        }
+
+        if (!$quiz->canUserTake($user)) {
+            abort(403, 'You are not eligible to take this quiz.');
+        }
+
+        if ($quiz->isExpired()) {
+            return redirect()->route('quizzes.results', [$group, $quiz])
+                ->with('error', 'This quiz has ended.');
+        }
+
+        // Check if already submitted
+        $submission = $quiz->getUserSubmission($user);
+        if ($submission && $submission->submitted_at) {
+            return redirect()->route('quizzes.results', [$group, $quiz]);
+        }
+
+        // Create or get submission
+        if (!$submission) {
+            $submission = $quiz->submissions()->create([
+                'user_id' => $user->id,
+                'started_at' => now(),
+            ]);
+        }
+
+        return view('quizzes.take', compact('group', 'quiz', 'submission'));
+    }
+
+    public function submit(Request $request, Group $group, Quiz $quiz)
+    {
+        $user = auth()->user();
+        $submission = $quiz->getUserSubmission($user);
+
+        if (!$submission || $submission->submitted_at) {
+            return response()->json(['success' => false, 'message' => 'No active submission found.'], 400);
+        }
+
+        // Check if time has expired (server-side)
+        $startedAt = $submission->started_at;
+        $durationSeconds = $quiz->duration * 60;
+        if ($startedAt->diffInSeconds(now()) > $durationSeconds + 5) {
+            $request->merge(['auto_submit' => 1]);
+        }
+
+        $request->validate([
+            'answers' => 'required|array',
+        ]);
+
+        // ===== SET ANSWERS FIRST =====
+        $submission->answers = $request->answers;
+        $score = $submission->calculateScore();
+
+        $submission->update([
+            'answers' => $request->answers,
+            'score' => $score,
+            'submitted_at' => now(),
+            'is_auto_submitted' => $request->input('auto_submit') == 1,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'score' => $score,
+            'redirect_url' => route('quizzes.results', [$group, $quiz]),
+        ]);
+    }
+    public function results(Group $group, Quiz $quiz)
+    {
+        $user = auth()->user();
+        // ... membership checks ...
+
+        $submission = $quiz->getUserSubmission($user);
+        $isCreator = ($quiz->created_by == $user->id);
+
+        // For creator: fetch all submissions
+        $allSubmissions = $quiz->submissions()->whereNotNull('submitted_at')->get();
+        $scores = $allSubmissions->pluck('score')->filter()->toArray();
+        $average = count($scores) > 0 ? array_sum($scores) / count($scores) : 0;
+        $maxScore = $quiz->getMaxScore();
+
+        // Histogram
+        $histogram = [];
+        $bins = 5;
+        if (count($scores) > 0) {
+            $min = 0;
+            $max = 100;
+            $step = ($max - $min) / $bins;
+            for ($i = 0; $i < $bins; $i++) {
+                $lower = $min + $i * $step;
+                $upper = $min + ($i + 1) * $step;
+                $histogram[] = [
+                    'range' => round($lower) . '-' . round($upper),
+                    'count' => 0,
+                ];
             }
-
-            if (!$quiz->canUserTake($user)) {
-                abort(403, 'You are not eligible to take this quiz.');
+            foreach ($scores as $score) {
+                $score = max(0, min(100, $score));
+                $index = min(floor(($score - $min) / $step), $bins - 1);
+                $histogram[$index]['count']++;
             }
+        }
 
-            if ($quiz->isExpired()) {
-                return redirect()->route('quizzes.results', [$group, $quiz])
-                    ->with('error', 'This quiz has ended.');
-            }
+        // Platform average
+        $platformAverage = QuizSubmission::whereNotNull('submitted_at')->avg('score') ?? 0;
 
-            // Check if already submitted
+        // Get the student's own score (for highlighting)
+        $myScore = $submission ? $submission->score : null;
+
+        return view('quizzes.results', compact(
+            'group', 'quiz', 'submission', 'isCreator',
+            'scores', 'average', 'maxScore',
+            'histogram', 'platformAverage', 'allSubmissions',
+            'myScore'
+        ));
+    }
+
+    public function index()
+    {
+        $user = auth()->user();
+
+        // Fix ambiguous column: qualify 'id' as 'groups.id'
+        $groups = $user->groups()->pluck('groups.id');
+
+        // Get the first group for the "New Quiz" button, qualify columns
+        $firstGroup = $user->groups()
+            ->select('groups.id', 'groups.name')
+            ->first();
+
+        if ($user->isAdmin() || $user->isLecturer()) {
+            // Lecturers/admins see quizzes they created (across all groups)
+            $quizzes = Quiz::where('created_by', $user->id)
+                ->with('group')
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } else {
+            // Students see published, active quizzes from groups they belong to
+            $quizzes = Quiz::whereIn('group_id', $groups)
+                ->where('is_published', true)
+                ->where(function ($q) {
+                    $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+                })
+                ->where(function ($q) {
+                    $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+                })
+                ->get()
+                ->filter(function ($quiz) use ($user) {
+                    return $quiz->canUserTake($user);
+                });
+        }
+
+        // For each quiz, check if the user has already submitted
+        $quizStatuses = $quizzes->map(function ($quiz) use ($user) {
             $submission = $quiz->getUserSubmission($user);
-            if ($submission && $submission->submitted_at) {
-                return redirect()->route('quizzes.results', [$group, $quiz]);
-            }
-
-            // Create or get submission
-            if (!$submission) {
-                $submission = $quiz->submissions()->create([
-                    'user_id' => $user->id,
-                    'started_at' => now(),
-                ]);
-            }
-
-            return view('quizzes.take', compact('group', 'quiz', 'submission'));
-        }
-
-public function submit(Request $request, Group $group, Quiz $quiz)
-{
-    $user = auth()->user();
-    $submission = $quiz->getUserSubmission($user);
-
-    if (!$submission || $submission->submitted_at) {
-        return response()->json(['success' => false, 'message' => 'No active submission found.'], 400);
-    }
-
-    // Check if time has expired (server-side)
-    $startedAt = $submission->started_at;
-    $durationSeconds = $quiz->duration * 60;
-    if ($startedAt->diffInSeconds(now()) > $durationSeconds + 5) {
-        $request->merge(['auto_submit' => 1]);
-    }
-
-    $request->validate([
-        'answers' => 'required|array',
-    ]);
-
-    // ===== SET ANSWERS FIRST =====
-    $submission->answers = $request->answers;
-    $score = $submission->calculateScore();
-
-    $submission->update([
-        'answers' => $request->answers,
-        'score' => $score,
-        'submitted_at' => now(),
-        'is_auto_submitted' => $request->input('auto_submit') == 1,
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'score' => $score,
-        'redirect_url' => route('quizzes.results', [$group, $quiz]),
-    ]);
-}
-public function results(Group $group, Quiz $quiz)
-{
-    $user = auth()->user();
-    // ... membership checks ...
-
-    $submission = $quiz->getUserSubmission($user);
-    $isCreator = ($quiz->created_by == $user->id);
-
-    // For creator: fetch all submissions
-    $allSubmissions = $quiz->submissions()->whereNotNull('submitted_at')->get();
-    $scores = $allSubmissions->pluck('score')->filter()->toArray();
-    $average = count($scores) > 0 ? array_sum($scores) / count($scores) : 0;
-    $maxScore = $quiz->getMaxScore();
-
-    // ===== HISTOGRAM =====
-    $histogram = [];
-    $bins = 5;
-    if (count($scores) > 0) {
-        $min = 0;
-        $max = 100;
-        $step = ($max - $min) / $bins;
-        // Initialize bins
-        for ($i = 0; $i < $bins; $i++) {
-            $lower = $min + $i * $step;
-            $upper = $min + ($i + 1) * $step;
-            $histogram[] = [
-                'range' => round($lower) . '-' . round($upper),
-                'count' => 0,
+            return [
+                'quiz' => $quiz,
+                'submitted' => $submission && $submission->submitted_at !== null,
+                'submission' => $submission,
             ];
-        }
-        // Count scores
-        foreach ($scores as $score) {
-            $index = min(floor(($score - $min) / $step), $bins - 1);
-            $histogram[$index]['count']++;
-        }
-    }
+        });
 
-    // Platform average
-    $platformAverage = QuizSubmission::whereNotNull('submitted_at')->avg('score') ?? 0;
-/* dd($scores, $histogram); */
-    return view('quizzes.results', compact(
-        'group', 'quiz', 'submission', 'isCreator',
-        'scores', 'average', 'maxScore',
-        'histogram', 'platformAverage', 'allSubmissions'
-    ));
-}
+        return view('quizzes.index', compact('quizStatuses', 'firstGroup'));
+    }
 }

@@ -121,18 +121,19 @@
         Link copied to clipboard!
     </div>
 
-    <!-- ===== INPUT AREA ===== -->
+    <!-- ===== INPUT AREA (with auto-expanding textarea) ===== -->
     <div class="bg-white border-t border-gray-200 px-5 py-3">
         <form method="POST" action="{{ route('posts.store', [$group, $topic]) }}" class="flex-1 flex flex-col gap-2 ajax-reply-form">
             @csrf
             <input type="hidden" name="parent_id" value="">
 
-            <div class="flex items-center gap-2">
-                <button type="button" class="text-gray-400 text-xl hover:text-gray-600 transition">😊</button>
-                <button type="button" class="text-gray-400 text-xl hover:text-gray-600 transition">📎</button>
-                <input type="text" name="content" id="replyInput" placeholder="Type your reply..."
-                       class="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm outline-none focus:border-[#075E54]">
-                <button type="submit" class="px-4 py-2 bg-[#075E54] text-white rounded-full hover:bg-[#128C7E] transition">
+            <div class="flex items-start gap-2">
+                <button type="button" class="text-gray-400 text-xl hover:text-gray-600 transition mt-1">😊</button>
+                <button type="button" class="text-gray-400 text-xl hover:text-gray-600 transition mt-1">📎</button>
+                <textarea name="content" id="replyInput" rows="1" placeholder="Type your reply..."
+                          class="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm outline-none resize-none focus:border-[#075E54] overflow-hidden"
+                          style="min-height: 42px; max-height: 150px;" data-min-height="42px"></textarea>
+                <button type="submit" class="px-4 py-2 bg-[#075E54] text-white rounded-full hover:bg-[#128C7E] transition flex-shrink-0">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
                     </svg>
@@ -202,9 +203,30 @@
                 });
             }
 
+            // ===== Auto-resize textarea (main) =====
+            const replyInput = document.getElementById('replyInput');
+            if (replyInput) {
+                replyInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+                });
+            }
+
+            // ===== Auto-resize for dynamically added inline reply textareas =====
+            function bindAutoResize() {
+                document.querySelectorAll('.reply-textarea').forEach(textarea => {
+                    textarea.removeEventListener('input', handleResize);
+                    textarea.addEventListener('input', handleResize);
+                });
+            }
+
+            function handleResize() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            }
+
             // ===== Existing real‑time & interaction logic =====
             const container = document.getElementById('messagesContainer');
-            const input = document.getElementById('replyInput');
             const typingIndicator = document.getElementById('typingIndicator');
             const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -212,8 +234,8 @@
             if (container) container.scrollTop = container.scrollHeight;
 
             // Enter to submit (will be handled by AJAX)
-            if (input) {
-                input.addEventListener('keydown', function(e) {
+            if (replyInput) {
+                replyInput.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         // Trigger submit on the closest form
@@ -269,7 +291,7 @@
                 if (form) {
                     form.classList.toggle('hidden');
                     if (!form.classList.contains('hidden')) {
-                        form.querySelector('input[name="content"]').focus();
+                        form.querySelector('textarea[name="content"]')?.focus();
                     }
                 }
             }
@@ -280,9 +302,9 @@
                     btn.addEventListener('click', handleReplyClick);
                 });
                 // Enter on reply inputs (handled via form submit)
-                document.querySelectorAll('.reply-form input[name="content"]').forEach(input => {
-                    input.removeEventListener('keydown', handleReplyInputKeydown);
-                    input.addEventListener('keydown', handleReplyInputKeydown);
+                document.querySelectorAll('.reply-form textarea[name="content"]').forEach(textarea => {
+                    textarea.removeEventListener('keydown', handleReplyInputKeydown);
+                    textarea.addEventListener('keydown', handleReplyInputKeydown);
                 });
             }
 
@@ -328,7 +350,7 @@
 
             // ----- TYPING INDICATOR -----
             let typingTimeout;
-            document.querySelectorAll('input[name="content"]').forEach(field => {
+            document.querySelectorAll('textarea[name="content"]').forEach(field => {
                 field.addEventListener('input', function() {
                     if (!typingIndicator) return;
                     clearTimeout(typingTimeout);
@@ -343,6 +365,7 @@
             bindLikeEvents();
             bindReplyEvents();
             bindToggleEvents();
+            bindAutoResize();
 
             // =============================================
             // AJAX FORM SUBMISSION (REAL-TIME WITHOUT RELOAD)
@@ -395,9 +418,17 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        // Clear the input field
-                        const inputField = form.querySelector('input[name="content"]');
-                        if (inputField) inputField.value = '';
+                        // Clear the input field (works for both input and textarea)
+                        const inputField = form.querySelector('[name="content"]');
+                        if (inputField) {
+                            inputField.value = '';
+                            // Reset height for textarea
+                            if (inputField.tagName === 'TEXTAREA') {
+                                inputField.style.height = 'auto';
+                                const minHeight = inputField.dataset.minHeight || '42px';
+                                inputField.style.height = minHeight;
+                            }
+                        }
                         showToast('Reply posted!', 'success');
                         console.log('✅ Reply posted:', data.post);
                     } else {
@@ -477,7 +508,9 @@
                                                 <form method="POST" action="{{ route('posts.store', [$group, $topic]) }}" class="flex gap-2 reply-form-ajax">
                                                     @csrf
                                                     <input type="hidden" name="parent_id" value="${post.id}">
-                                                    <input type="text" name="content" placeholder="Write a reply..." class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#075E54]">
+                                                    <textarea name="content" rows="1" placeholder="Write a reply..." 
+                                                              class="reply-textarea flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none resize-none focus:ring-1 focus:ring-[#075E54] focus:border-[#075E54] overflow-hidden"
+                                                              style="min-height: 38px; max-height: 120px;"></textarea>
                                                     <button type="submit" class="px-3 py-1.5 bg-[#075E54] text-white text-sm rounded-lg">Reply</button>
                                                 </form>
                                             </div>
@@ -496,6 +529,7 @@
                             container.insertAdjacentHTML('beforeend', html);
                             bindLikeEvents();
                             bindReplyEvents();
+                            bindAutoResize(); // auto-resize for the new textarea
                             // Attach AJAX to the newly added form
                             const newForm = container.querySelector('.post-item:last-child .reply-form-ajax');
                             if (newForm) {
@@ -547,7 +581,7 @@
                                     newForm.removeEventListener('submit', handleAjaxFormSubmit);
                                     newForm.addEventListener('submit', handleAjaxFormSubmit);
                                 }
-
+                                bindAutoResize();
                                 bindReplyEvents();
                                 bindToggleEvents();
 

@@ -77,9 +77,7 @@ class PostController extends Controller
         $user->update(['last_communicated_at' => now()]);
 
         // Broadcast real-time event
-        //debugger-log
-        \Log::info('Broadcasting NewPostEvent for post ID: ' . $post->id);
-        broadcast(new NewPostEvent($post))/* ->toOthers() */;
+        broadcast(new NewPostEvent($post))->toOthers();
 
         // ==============================================
         // AJAX RESPONSE (no page reload)

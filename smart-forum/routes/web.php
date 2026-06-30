@@ -16,7 +16,6 @@ use App\Models\Group;
 use App\Models\QuizSubmission;
 use App\Http\Controllers\Web\QuizController;
 
-
 // ============================================
 // ROOT – WhatsApp Login
 // ============================================
@@ -38,42 +37,42 @@ Route::middleware(['auth', 'approved'])->group(function () {
     // DASHBOARD – Redirect admins, show student dashboard for others
     // ============================================
     Route::get('/dashboard', function () {
-    $user = auth()->user();
+        $user = auth()->user();
 
-    // Redirect admins to admin dashboard
-    if ($user->isAdmin()) {
-        return redirect()->route('admin.dashboard');
-    }
+        // Redirect admins to admin dashboard
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
 
-    // Student / Lecturer data
-    $groups = $user->groups()->withCount('topics')->get();
-    $allGroups = Group::withCount('users')->get();
+        // Student / Lecturer data
+        $groups = $user->groups()->withCount('topics')->get();
+        $allGroups = Group::withCount('users')->get();
 
-    // Personal stats from user_interactions
-    $stats = [
-        'likes' => $user->interactions()->where('action_type', 'like')->count(),
-        'comments' => $user->interactions()->where('action_type', 'comment')->count(),
-        'views' => $user->interactions()->where('action_type', 'view')->count(),
-        'downloads' => $user->interactions()->where('action_type', 'download')->count(),
-    ];
+        // Personal stats from user_interactions
+        $stats = [
+            'likes' => $user->interactions()->where('action_type', 'like')->count(),
+            'comments' => $user->interactions()->where('action_type', 'comment')->count(),
+            'views' => $user->interactions()->where('action_type', 'view')->count(),
+            'downloads' => $user->interactions()->where('action_type', 'download')->count(),
+        ];
 
-    // Quiz performance (if QuizSubmission model exists)
-    $quizSubmissions = collect();
-    $quizzesCompleted = 0;
-    $averageScore = 0;
+        // Quiz performance (if QuizSubmission model exists)
+        $quizSubmissions = collect();
+        $quizzesCompleted = 0;
+        $averageScore = 0;
 
-    if (class_exists('App\Models\QuizSubmission')) {
-        $quizSubmissions = \App\Models\QuizSubmission::where('user_id', $user->id)
-            ->with('quiz')
-            ->get();
-        $quizzesCompleted = $quizSubmissions->count();
-        $averageScore = $quizSubmissions->avg('score') ?? 0;
-    }
+        if (class_exists('App\Models\QuizSubmission')) {
+            $quizSubmissions = \App\Models\QuizSubmission::where('user_id', $user->id)
+                ->with('quiz')
+                ->get();
+            $quizzesCompleted = $quizSubmissions->count();
+            $averageScore = $quizSubmissions->avg('score') ?? 0;
+        }
 
-    return view('student-dashboard', compact(
-        'user', 'groups', 'allGroups', 'stats', 'quizSubmissions', 'quizzesCompleted', 'averageScore'
-    ));
-     })->name('dashboard');
+        return view('student-dashboard', compact(
+            'user', 'groups', 'allGroups', 'stats', 'quizSubmissions', 'quizzesCompleted', 'averageScore'
+        ));
+    })->name('dashboard');
 
     // ============================================
     // GROUP JOIN REQUEST
@@ -129,6 +128,22 @@ Route::middleware(['auth', 'approved'])->group(function () {
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
 
     // ============================================
+    // QUIZZES INDEX (main page)
+    // ============================================
+    Route::get('/quizzes', [QuizController::class, 'index'])->name('quizzes.index');
+
+    // ============================================
+    // QUIZZES (nested under groups)
+    // ============================================
+    Route::prefix('groups/{group}')->group(function () {
+        Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
+        Route::post('/quizzes', [QuizController::class, 'store'])->name('quizzes.store');
+        Route::get('/quizzes/{quiz}/take', [QuizController::class, 'take'])->name('quizzes.take');
+        Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])->name('quizzes.submit');
+        Route::get('/quizzes/{quiz}/results', [QuizController::class, 'results'])->name('quizzes.results');
+    });
+
+    // ============================================
     // ADMIN ROUTES (only for role:admin)
     // ============================================
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
@@ -156,13 +171,4 @@ Route::middleware(['auth', 'approved'])->group(function () {
         Route::patch('/users/{user}/reject', [UserController::class, 'reject'])->name('admin.users.reject');
         Route::patch('/users/{user}/promote', [UserController::class, 'promote'])->name('admin.users.promote');
     });
-
-// Quiz routes
-     Route::prefix('groups/{group}')->group(function () {
-     Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
-     Route::post('/quizzes', [QuizController::class, 'store'])->name('quizzes.store');
-     Route::get('/quizzes/{quiz}/take', [QuizController::class, 'take'])->name('quizzes.take');
-     Route::post('/quizzes/{quiz}/submit', [QuizController::class, 'submit'])->name('quizzes.submit');
-     Route::get('/quizzes/{quiz}/results', [QuizController::class, 'results'])->name('quizzes.results');
-     });
 });

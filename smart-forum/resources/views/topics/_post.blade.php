@@ -54,14 +54,15 @@
                 @endif
             </div>
 
-            <!-- Inline Reply Form (AJAX-enabled) -->
+            <!-- Inline Reply Form (AJAX-enabled with auto-expanding textarea) -->
             <div class="reply-form mt-2 hidden" data-post-id="{{ $post->id }}">
-                <form method="POST" action="{{ route('posts.store', [$group, $topic]) }}" class="flex gap-2 reply-form-ajax">
+                <form method="POST" action="{{ route('posts.store', [$group, $topic]) }}" class="flex items-start gap-2 reply-form-ajax">
                     @csrf
                     <input type="hidden" name="parent_id" value="{{ $post->id }}">
-                    <input type="text" name="content" placeholder="Write a reply..." 
-                           class="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-[#075E54] focus:border-[#075E54]">
-                    <button type="submit" class="px-3 py-1.5 bg-[#075E54] text-white text-sm rounded-lg hover:bg-[#128C7E] transition">
+                    <textarea name="content" rows="1" placeholder="Write a reply..." 
+                              class="reply-textarea flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none resize-none focus:ring-1 focus:ring-[#075E54] focus:border-[#075E54] overflow-hidden"
+                              style="min-height: 38px; max-height: 120px;"></textarea>
+                    <button type="submit" class="px-3 py-1.5 bg-[#075E54] text-white text-sm rounded-lg hover:bg-[#128C7E] transition flex-shrink-0">
                         Reply
                     </button>
                 </form>

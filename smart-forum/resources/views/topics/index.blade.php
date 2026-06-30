@@ -39,13 +39,6 @@
         </div>
         
         <div class="flex items-center gap-2">
-            <!-- Quiz Creation (Lecturers & Admins only) -->
-            @if(auth()->user()->isLecturer() || auth()->user()->isAdmin())
-                <a href="{{ route('quizzes.create', $group) }}" 
-                   class="text-[#075E54] font-semibold text-sm hover:underline">
-                    + New Quiz
-                </a>
-            @endif
             <!-- Topic Creation (Everyone) -->
             <button onclick="document.getElementById('createTopicModal').showModal()" 
                     class="text-[#075E54] font-semibold text-sm hover:underline">
@@ -53,80 +46,6 @@
             </button>
         </div>
     </div>
-
-    <!-- My Quizzes (Lecturers/Admins only) -->
-    @if((auth()->user()->isLecturer() || auth()->user()->isAdmin()) && isset($myQuizzes) && $myQuizzes->count() > 0)
-        <div class="mb-6">
-            <h3 class="text-sm font-semibold text-gray-600 mb-2">📋 My Quizzes</h3>
-            <div class="space-y-3">
-                @foreach($myQuizzes as $quiz)
-                    <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="font-medium text-sm">{{ $quiz->title }}</span>
-                                <span class="text-xs text-gray-400 ml-2">({{ $quiz->duration }} min)</span>
-                                @if($quiz->ends_at)
-                                    <span class="text-xs text-gray-400 ml-2">Due: {{ $quiz->ends_at->format('M d, Y g:i A') }}</span>
-                                @endif
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs text-gray-500">{{ $quiz->submissions_count }} submissions</span>
-                                <span class="text-xs text-gray-500">Avg: {{ number_format($quiz->avg_score, 2) }}%</span>
-                                <a href="{{ route('quizzes.results', [$group, $quiz]) }}" 
-                                class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
-                                    View Results
-                                </a>
-                            </div>
-                        </div>
-                        @if($quiz->description)
-                            <p class="text-sm text-gray-500 mt-1">{{ str()->limit($quiz->description, 100) }}</p>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    @endif
-
-    <!-- Available Quizzes Section -->
-    @if(isset($quizStatuses) && $quizStatuses->count() > 0)
-        <div class="mb-6">
-            <h3 class="text-sm font-semibold text-gray-600 mb-2">📝 Available Quizzes</h3>
-            <div class="space-y-3">
-                @foreach($quizStatuses as $item)
-                    @php
-                        $quiz = $item['quiz'];
-                        $submitted = $item['submitted'];
-                        $submission = $item['submission'];
-                    @endphp
-                    <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="font-medium text-sm">{{ $quiz->title }}</span>
-                                <span class="text-xs text-gray-400 ml-2">({{ $quiz->duration }} min)</span>
-                                @if($quiz->ends_at)
-                                    <span class="text-xs text-gray-400 ml-2">Due: {{ $quiz->ends_at->format('M d, Y g:i A') }}</span>
-                                @endif
-                            </div>
-                            @if($submitted)
-                                <a href="{{ route('quizzes.results', [$group, $quiz]) }}" 
-                                class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
-                                    View Results
-                                </a>
-                            @else
-                                <a href="{{ route('quizzes.take', [$group, $quiz]) }}" 
-                                class="text-sm bg-[#075E54] text-white px-3 py-1 rounded hover:bg-[#128C7E] transition">
-                                    Take Quiz
-                                </a>
-                            @endif
-                        </div>
-                        @if($quiz->description)
-                            <p class="text-sm text-gray-500 mt-1">{{ str()->limit($quiz->description, 100) }}</p>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-    @endif
 
     <!-- Topics as Messages -->
     <div class="whatsapp-messages flex-1 overflow-y-auto px-8 py-4 space-y-2" id="topicList">

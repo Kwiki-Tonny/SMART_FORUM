@@ -106,31 +106,44 @@
                 </div>
             @endif
 
-            <!-- ===== HISTOGRAM (always shown) ===== -->
-            @if(count($histogram) > 0)
-                @php
-                    $maxCount = max(array_column($histogram, 'count')) ?: 1;
-                @endphp
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 class="font-semibold text-gray-700 mb-3">Score Distribution</h3>
-                    @if($maxCount > 0)
-                        <div class="flex items-end h-48 gap-2">
-                            @foreach($histogram as $bin)
-                                @php
-                                    $height = ($bin['count'] / $maxCount) * 100;
-                                @endphp
-                                <div class="flex-1 flex flex-col items-center">
-                                    <div class="w-full bg-[#075E54] rounded-t" style="height: {{ max($height, 4) }}%; min-height: 4px;"></div>
-                                    <span class="text-xs text-gray-500 mt-1">{{ $bin['range'] }}</span>
-                                    <span class="text-xs text-gray-400">{{ $bin['count'] }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-gray-400 text-sm">No submissions yet.</p>
-                    @endif
-                </div>
-            @endif
+                <!-- Histogram Section -->
+                @if(count($histogram) > 0)
+                    @php
+                        $maxCount = max(array_column($histogram, 'count')) ?: 1;
+                        // Determine which bin contains the user's score (if any)
+                        $myBin = null;
+                        if ($myScore !== null) {
+                            $min = 0;
+                            $max = 100;
+                            $step = ($max - $min) / count($histogram);
+                            $myBin = min(floor(($myScore - $min) / $step), count($histogram) - 1);
+                        }
+                    @endphp
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                        <h3 class="font-semibold text-gray-700 mb-3">Score Distribution</h3>
+                        @if($maxCount > 0)
+                            <div class="flex items-end h-48 gap-2">
+                                @foreach($histogram as $index => $bin)
+                                    @php
+                                        $height = ($bin['count'] / $maxCount) * 100;
+                                        $isMyBin = ($myBin !== null && $index == $myBin);
+                                    @endphp
+                                    <div class="flex-1 flex flex-col items-center">
+                                        <div class="w-full rounded-t {{ $isMyBin ? 'bg-[#25D366]' : 'bg-[#075E54]' }}" 
+                                            style="height: {{ max($height, 4) }}%; min-height: 4px;"></div>
+                                        <span class="text-xs text-gray-500 mt-1">{{ $bin['range'] }}</span>
+                                        <span class="text-xs text-gray-400">{{ $bin['count'] }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                            @if($myBin !== null)
+                                <p class="text-xs text-green-600 mt-2">Green bar indicates your score range.</p>
+                            @endif
+                        @else
+                            <p class="text-gray-400 text-sm">No submissions yet.</p>
+                        @endif
+                    </div>
+                @endif
 
             <div class="mt-6 text-center">
                 <a href="{{ route('groups.topics', $group) }}" class="text-sm text-[#075E54] hover:underline">
