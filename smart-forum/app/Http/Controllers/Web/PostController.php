@@ -76,6 +76,11 @@ class PostController extends Controller
         // Update user's last activity timestamp (compliance tracking)
         $user->update(['last_communicated_at' => now()]);
 
+        // ==============================================
+        // FALLBACK POLLING TRIGGER – store timestamp to detect new posts
+        // ==============================================
+        session()->put('new_post_trigger', now()->timestamp);
+
         // Broadcast real-time event
         broadcast(new NewPostEvent($post))->toOthers();
 
