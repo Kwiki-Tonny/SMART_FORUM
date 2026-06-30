@@ -598,35 +598,60 @@
             // =============================================
             // FALLBACK POLLING – Reliable page reload when new posts are detected
             // =============================================
-            let lastTrigger = {{ session('new_post_trigger', 0) }};
-            let isPolling = true;
-            const POLL_INTERVAL = 3000; // 3 seconds
+            (function() {
+                // Use localStorage to persist the trigger across reloads
+                const STORAGE_KEY = 'last_post_trigger';
+                let lastTrigger = parseInt(localStorage.getItem(STORAGE_KEY)) || 0;
+                let isPolling = true;
+                const POLL_INTERVAL = 3000; // 3 seconds
+                let isReloading = false;
 
-            function checkForNewPosts() {
-                if (!isPolling) return;
+                // On page load, immediately update the stored trigger to match the server's current value
+                // This prevents an immediate reload on first poll.
                 fetch('{{ route('check.posts') }}')
                     .then(response => response.json())
                     .then(data => {
-                        if (data.trigger > lastTrigger) {
-                            lastTrigger = data.trigger;
-                            console.log('📢 New posts detected! Refreshing...');
-                            // Small delay so any pending operations finish
-                            setTimeout(() => {
-                                location.reload();
-                            }, 300);
+                        const serverTrigger = data.trigger || 0;
+                        if (serverTrigger > lastTrigger) {
+                            // If the server already has a newer trigger (e.g., from another tab), store it.
+                            localStorage.setItem(STORAGE_KEY, serverTrigger);
+                            lastTrigger = serverTrigger;
                         }
                     })
                     .catch(() => {});
-            }
 
-            // Start polling
-            const pollInterval = setInterval(checkForNewPosts, POLL_INTERVAL);
+                function checkForNewPosts() {
+                    if (!isPolling || isReloading) return;
 
-            // Clean up on page unload
-            window.addEventListener('beforeunload', function() {
-                isPolling = false;
-                clearInterval(pollInterval);
-            });
+                    fetch('{{ route('check.posts') }}')
+                        .then(response => response.json())
+                        .then(data => {
+                            const serverTrigger = data.trigger || 0;
+                            if (serverTrigger > lastTrigger) {
+                                // New post detected!
+                                console.log('📢 New posts detected! Reloading...');
+                                isReloading = true;
+                                // Store the new trigger immediately to prevent duplicate reloads
+                                localStorage.setItem(STORAGE_KEY, serverTrigger);
+                                lastTrigger = serverTrigger;
+                                // Small delay before reload to ensure everything is clean
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 300);
+                            }
+                        })
+                        .catch(() => {});
+                }
+
+                // Start polling
+                const pollInterval = setInterval(checkForNewPosts, POLL_INTERVAL);
+
+                // Clean up on page unload
+                window.addEventListener('beforeunload', function() {
+                    isPolling = false;
+                    clearInterval(pollInterval);
+                });
+            })();
 
             // Close reply forms on Escape
             document.addEventListener('keydown', function(e) {
