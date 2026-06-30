@@ -529,7 +529,7 @@
                             container.insertAdjacentHTML('beforeend', html);
                             bindLikeEvents();
                             bindReplyEvents();
-                            bindAutoResize(); // auto-resize for the new textarea
+                            bindAutoResize();
                             // Attach AJAX to the newly added form
                             const newForm = container.querySelector('.post-item:last-child .reply-form-ajax');
                             if (newForm) {
@@ -595,6 +595,39 @@
                     });
             }
 
+            // =============================================
+            // FALLBACK POLLING – Reliable page reload when new posts are detected
+            // =============================================
+            let lastTrigger = {{ session('new_post_trigger', 0) }};
+            let isPolling = true;
+            const POLL_INTERVAL = 3000; // 3 seconds
+
+            function checkForNewPosts() {
+                if (!isPolling) return;
+                fetch('{{ route('check.posts') }}')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.trigger > lastTrigger) {
+                            lastTrigger = data.trigger;
+                            console.log('📢 New posts detected! Refreshing...');
+                            // Small delay so any pending operations finish
+                            setTimeout(() => {
+                                location.reload();
+                            }, 300);
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            // Start polling
+            const pollInterval = setInterval(checkForNewPosts, POLL_INTERVAL);
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', function() {
+                isPolling = false;
+                clearInterval(pollInterval);
+            });
+
             // Close reply forms on Escape
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
@@ -604,7 +637,7 @@
                 }
             });
 
-            console.log('LinkedIn-style thread loaded successfully!');
+            console.log('📡 LinkedIn-style thread loaded with fallback polling.');
         });
     </script>
     @endpush
