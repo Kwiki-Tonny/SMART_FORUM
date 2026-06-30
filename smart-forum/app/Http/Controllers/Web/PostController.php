@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\Topic;
 use App\Events\NewPostEvent;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache; // <-- ADDED for global polling trigger
 
 class PostController extends Controller
 {
@@ -77,9 +78,9 @@ class PostController extends Controller
         $user->update(['last_communicated_at' => now()]);
 
         // ==============================================
-        // FALLBACK POLLING TRIGGER – store timestamp to detect new posts
+        // FALLBACK POLLING TRIGGER – Global timestamp (Cache) for all users
         // ==============================================
-        session()->put('new_post_trigger', now()->timestamp);
+        Cache::put('new_post_trigger', now()->timestamp, 60); // store for 60 seconds
 
         // Broadcast real-time event
         broadcast(new NewPostEvent($post))->toOthers();

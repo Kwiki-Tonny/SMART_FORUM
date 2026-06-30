@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Cache; // <-- ADDED for global polling trigger
 use App\Http\Controllers\Web\GroupTopicController;
 use App\Http\Controllers\Web\TopicController;
 use App\Http\Controllers\Web\PostController;
@@ -144,11 +145,11 @@ Route::middleware(['auth', 'approved'])->group(function () {
     });
 
     // ============================================
-    // FALLBACK POLLING – Check for new posts
+    // FALLBACK POLLING – Check for new posts (global cache)
     // ============================================
     Route::get('/check-new-posts', function () {
         return response()->json([
-            'trigger' => session('new_post_trigger', 0)
+            'trigger' => Cache::get('new_post_trigger', 0)  // <-- CHANGED to Cache
         ]);
     })->middleware('auth')->name('check.posts');
 
