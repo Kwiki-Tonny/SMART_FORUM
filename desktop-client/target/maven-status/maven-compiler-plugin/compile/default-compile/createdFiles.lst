@@ -1,7 +1,9 @@
+com\smartforum\models\Post.class
 com\smartforum\controllers\DashboardController$1.class
 com\smartforum\controllers\DashboardController$3.class
 com\smartforum\controllers\LoginController.class
 com\smartforum\services\ApiClient.class
 com\smartforum\controllers\DashboardController$2.class
+com\smartforum\services\DatabaseHelper.class
 com\smartforum\App.class
 com\smartforum\controllers\DashboardController.class

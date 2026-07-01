@@ -1,7 +1,10 @@
 package com.smartforum.controllers;
 
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +16,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.smartforum.App;
+import com.smartforum.models.Post;
 import com.smartforum.services.ApiClient;
 import com.smartforum.services.DatabaseHelper;
 
@@ -25,7 +29,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -38,26 +41,50 @@ public class DashboardController {
 
     @FXML private ListView<String> groupListView;
     @FXML private ListView<String> topicListView;
-    @FXML private ListView<String> postListView;
+    @FXML private ListView<Post> postListView;
     @FXML private Label groupTitleLabel;
     @FXML private Label bottomStatusLabel;
     @FXML private Button backButton;
 
     private ObservableList<String> groups = FXCollections.observableArrayList();
     private ObservableList<String> topics = FXCollections.observableArrayList();
-    private ObservableList<String> posts = FXCollections.observableArrayList();
+    private ObservableList<Post> posts = FXCollections.observableArrayList();
 
     private int currentGroupId = -1;
     private int currentTopicId = -1;
     private boolean isShowingPosts = false;
 
+    // Use two different load IDs to distinguish topics vs posts
     private AtomicBoolean loadingTopics = new AtomicBoolean(false);
     private int loadingGroupId = -1;
+
+    private AtomicBoolean loadingPosts = new AtomicBoolean(false);
+    private int loadingTopicId = -1;
 
     private Map<String, Color> groupColors = new HashMap<>();
     private Random random = new Random();
 
     private DatabaseHelper db = new DatabaseHelper();
+
+    // Helper: format ISO timestamp to relative time
+    private String formatTimestamp(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) return "Just now";
+        try {
+            SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+            Date date = isoFormat.parse(timestamp);
+            long diff = System.currentTimeMillis() - date.getTime();
+            long seconds = diff / 1000;
+            long minutes = seconds / 60;
+            long hours = minutes / 60;
+            long days = hours / 24;
+            if (days > 0) return days + "d ago";
+            if (hours > 0) return hours + "h ago";
+            if (minutes > 0) return minutes + "m ago";
+            return "Just now";
+        } catch (ParseException e) {
+            return "Just now";
+        }
+    }
 
     @FXML
     public void initialize() {
@@ -65,10 +92,7 @@ public class DashboardController {
         topicListView.setItems(topics);
         postListView.setItems(posts);
 
-        // Disable horizontal scroll bar on post list (via CSS – we keep the line removed)
-        // CSS will handle it.
-
-        // ---- Group Cell Factory (Telegram style) ----
+        // ---- Group Cell Factory ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -127,26 +151,21 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X-style) ----
-        postListView.setCellFactory(lv -> new ListCell<String>() {
+        // ---- Post List Cell Factory (X‑style with real timestamps) ----
+        postListView.setCellFactory(lv -> new ListCell<Post>() {
             @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
+            protected void updateItem(Post post, boolean empty) {
+                super.updateItem(post, empty);
+                if (empty || post == null) {
                     setText(null);
                     setGraphic(null);
                     return;
                 }
 
-                // Bind cell width to list width
                 if (getListView() != null && !prefWidthProperty().isBound()) {
                     prefWidthProperty().bind(getListView().widthProperty());
                 }
                 setMaxWidth(Double.MAX_VALUE);
-
-                String[] parts = item.split(": ", 2);
-                String author = parts.length > 0 ? parts[0] : "Unknown";
-                String content = parts.length > 1 ? parts[1] : item;
 
                 VBox card = new VBox(4);
                 card.setMaxWidth(Double.MAX_VALUE);
@@ -155,17 +174,20 @@ public class DashboardController {
                 HBox header = new HBox(8);
                 header.setStyle("-fx-alignment: center-left;");
 
+                // Avatar
                 StackPane avatarPane = new StackPane();
                 avatarPane.setPrefSize(32, 32);
                 avatarPane.setStyle("-fx-background-radius: 50%; -fx-background-color: #075E54; -fx-alignment: center;");
-                Label avatarLabel = new Label(author.substring(0, 1).toUpperCase());
+                Label avatarLabel = new Label(post.getAuthor().substring(0, 1).toUpperCase());
                 avatarLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
                 avatarPane.getChildren().add(avatarLabel);
 
-                Label authorLabel = new Label(author);
+                Label authorLabel = new Label(post.getAuthor());
                 authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0F1419;");
 
-                Label timestampLabel = new Label("Just now");
+                // Real timestamp
+                String displayTime = formatTimestamp(post.getTimestamp());
+                Label timestampLabel = new Label(displayTime);
                 timestampLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #8899A6;");
 
                 Region spacer = new Region();
@@ -173,7 +195,7 @@ public class DashboardController {
 
                 header.getChildren().addAll(avatarPane, authorLabel, timestampLabel);
 
-                Label contentLabel = new Label(content);
+                Label contentLabel = new Label(post.getContent());
                 contentLabel.setWrapText(true);
                 contentLabel.setMaxWidth(Double.MAX_VALUE);
                 contentLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #0F1419; -fx-padding: 4 0 8 0;");
@@ -206,8 +228,6 @@ public class DashboardController {
                 if (parts.length == 2) {
                     int newGroupId = Integer.parseInt(parts[0]);
                     String groupName = parts[1];
-                    System.out.println("Group clicked: " + groupName + " (ID: " + newGroupId + ")");
-
                     if (isShowingPosts) {
                         isShowingPosts = false;
                         backButton.setVisible(false);
@@ -217,7 +237,6 @@ public class DashboardController {
                         postListView.setManaged(false);
                         currentTopicId = -1;
                     }
-
                     currentGroupId = newGroupId;
                     groupTitleLabel.setText(groupName);
                     loadTopics(currentGroupId);
@@ -230,7 +249,6 @@ public class DashboardController {
                 String[] parts = newVal.split(": ", 2);
                 if (parts.length == 2) {
                     currentTopicId = Integer.parseInt(parts[0]);
-                    System.out.println("Topic clicked: " + parts[1] + " (ID: " + currentTopicId + ")");
                     showPosts(currentTopicId);
                 }
             }
@@ -239,7 +257,6 @@ public class DashboardController {
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
 
-        // Initial visibility
         topicListView.setVisible(true);
         topicListView.setManaged(true);
         postListView.setVisible(false);
@@ -247,10 +264,10 @@ public class DashboardController {
         isShowingPosts = false;
     }
 
-    // ---- Data loading methods (with caching) ----
+    // ---- Data loading methods (with caching and null‑safe parsing) ----
 
     private void loadGroups() {
-        // Load from cache first
+        // Load from cache
         List<Map<String, Object>> cached = db.getGroups();
         if (!cached.isEmpty()) {
             List<String> groupStrings = new ArrayList<>();
@@ -263,7 +280,6 @@ public class DashboardController {
             });
         }
 
-        // Fetch from API
         bottomStatusLabel.setText("Refreshing groups...");
         new Thread(() -> {
             try {
@@ -275,8 +291,8 @@ public class DashboardController {
                     JsonObject obj = el.getAsJsonObject();
                     int id = obj.get("id").getAsInt();
                     String name = obj.get("name").getAsString();
-                    String description = obj.get("description") != null ? obj.get("description").getAsString() : "";
-                    String updatedAt = obj.get("updated_at") != null ? obj.get("updated_at").getAsString() : "";
+                    String description = (obj.get("description") != null && !obj.get("description").isJsonNull()) ? obj.get("description").getAsString() : "";
+                    String updatedAt = (obj.get("updated_at") != null && !obj.get("updated_at").isJsonNull()) ? obj.get("updated_at").getAsString() : "";
                     groupStrings.add(id + ": " + name);
 
                     Map<String, Object> g = new HashMap<>();
@@ -299,9 +315,9 @@ public class DashboardController {
     }
 
     private void loadTopics(int groupId) {
-        // Cancel previous load
         loadingTopics.set(true);
-        loadingGroupId = groupId;
+        final int currentLoadId = (int) System.currentTimeMillis();
+        loadingGroupId = currentLoadId;
 
         // Load from cache
         List<Map<String, Object>> cached = db.getTopicsForGroup(groupId);
@@ -316,10 +332,8 @@ public class DashboardController {
             });
         }
 
-        // Fetch from API
         bottomStatusLabel.setText("Refreshing topics...");
         new Thread(() -> {
-            final int requestGroupId = groupId;
             try {
                 String response = ApiClient.get("/groups/" + groupId + "/topics");
                 JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
@@ -334,17 +348,24 @@ public class DashboardController {
                     Map<String, Object> t = new HashMap<>();
                     t.put("id", id);
                     t.put("title", title);
-                    t.put("body", obj.get("body") != null ? obj.get("body").getAsString() : "");
-                    t.put("creator_id", obj.get("creator_id") != null ? obj.get("creator_id").getAsInt() : null);
-                    t.put("creator_name", obj.get("creator") != null && obj.get("creator").getAsJsonObject().has("name") ?
-                            obj.get("creator").getAsJsonObject().get("name").getAsString() : "");
-                    t.put("ml_category", obj.get("ml_category") != null ? obj.get("ml_category").getAsString() : "");
-                    t.put("created_at", obj.get("created_at") != null ? obj.get("created_at").getAsString() : "");
-                    t.put("updated_at", obj.get("updated_at") != null ? obj.get("updated_at").getAsString() : "");
+                    t.put("body", (obj.get("body") != null && !obj.get("body").isJsonNull()) ? obj.get("body").getAsString() : "");
+                    t.put("creator_id", (obj.has("creator_id") && !obj.get("creator_id").isJsonNull()) ? obj.get("creator_id").getAsInt() : null);
+                    String creatorName = "";
+                    if (obj.has("creator") && !obj.get("creator").isJsonNull()) {
+                        JsonObject creator = obj.getAsJsonObject("creator");
+                        if (creator.has("name") && !creator.get("name").isJsonNull()) {
+                            creatorName = creator.get("name").getAsString();
+                        }
+                    }
+                    t.put("creator_name", creatorName);
+                    t.put("ml_category", (obj.get("ml_category") != null && !obj.get("ml_category").isJsonNull()) ? obj.get("ml_category").getAsString() : "");
+                    t.put("created_at", (obj.get("created_at") != null && !obj.get("created_at").isJsonNull()) ? obj.get("created_at").getAsString() : "");
+                    t.put("updated_at", (obj.get("updated_at") != null && !obj.get("updated_at").isJsonNull()) ? obj.get("updated_at").getAsString() : "");
                     topicList.add(t);
                 }
                 db.saveTopicsForGroup(groupId, topicList);
-                if (loadingGroupId == requestGroupId && loadingTopics.get()) {
+
+                if (loadingGroupId == currentLoadId) {
                     Platform.runLater(() -> {
                         topics.setAll(topicStrings);
                         bottomStatusLabel.setText("Topics refreshed from API");
@@ -352,7 +373,7 @@ public class DashboardController {
                     });
                 }
             } catch (IOException e) {
-                if (loadingGroupId == requestGroupId) {
+                if (loadingGroupId == currentLoadId) {
                     Platform.runLater(() -> {
                         bottomStatusLabel.setText("Error refreshing topics: " + e.getMessage());
                         loadingTopics.set(false);
@@ -364,6 +385,11 @@ public class DashboardController {
     }
 
     private void showPosts(int topicId) {
+        loadingPosts.set(true);
+        final int currentLoadId = (int) System.currentTimeMillis();
+        loadingTopicId = currentLoadId;
+
+        // Switch UI to posts view
         isShowingPosts = true;
         backButton.setVisible(true);
         topicListView.setVisible(false);
@@ -374,61 +400,79 @@ public class DashboardController {
         // Load from cache
         List<Map<String, Object>> cached = db.getPostsForTopic(topicId);
         if (!cached.isEmpty()) {
-            List<String> postStrings = new ArrayList<>();
+            List<Post> postList = new ArrayList<>();
             for (Map<String, Object> p : cached) {
                 String userName = (String) p.get("user_name");
                 String content = (String) p.get("content");
-                postStrings.add(userName + ": " + content);
+                String createdAt = (String) p.get("created_at");
+                postList.add(new Post(userName, content, createdAt));
             }
             Platform.runLater(() -> {
-                posts.setAll(postStrings);
+                posts.setAll(postList);
                 bottomStatusLabel.setText("Posts loaded from cache");
             });
         }
 
-        // Fetch from API
         bottomStatusLabel.setText("Refreshing posts...");
         new Thread(() -> {
             try {
                 String response = ApiClient.get("/groups/" + currentGroupId + "/topics/" + topicId);
                 JsonObject obj = JsonParser.parseString(response).getAsJsonObject();
                 JsonArray postsArray = obj.getAsJsonArray("posts");
-                List<Map<String, Object>> postList = new ArrayList<>();
-                List<String> postStrings = new ArrayList<>();
+                List<Post> postList = new ArrayList<>();
                 for (JsonElement el : postsArray) {
                     JsonObject p = el.getAsJsonObject();
-                    int id = p.get("id").getAsInt();
-                    String content = p.get("content").getAsString();
-                    String userName = p.get("user") != null && p.get("user").getAsJsonObject().has("name") ?
-                            p.get("user").getAsJsonObject().get("name").getAsString() : "Unknown";
-                    Integer parentId = p.get("parent_id") != null && !p.get("parent_id").isJsonNull() ? p.get("parent_id").getAsInt() : null;
-                    String createdAt = p.get("created_at") != null ? p.get("created_at").getAsString() : "";
-                    String updatedAt = p.get("updated_at") != null ? p.get("updated_at").getAsString() : "";
-                    Boolean isPrivate = p.get("is_private") != null && p.get("is_private").getAsBoolean();
-
-                    postStrings.add(userName + ": " + content);
-
-                    Map<String, Object> post = new HashMap<>();
-                    post.put("id", id);
-                    post.put("user_id", p.get("user_id") != null ? p.get("user_id").getAsInt() : null);
-                    post.put("user_name", userName);
-                    post.put("content", content);
-                    post.put("is_private", isPrivate);
-                    post.put("parent_id", parentId);
-                    post.put("created_at", createdAt);
-                    post.put("updated_at", updatedAt);
-                    postList.add(post);
+                    String content = (p.get("content") != null && !p.get("content").isJsonNull()) ? p.get("content").getAsString() : "";
+                    
+                    String userName = "Unknown";
+                    if (p.has("user") && !p.get("user").isJsonNull()) {
+                        JsonObject user = p.getAsJsonObject("user");
+                        if (user.has("name") && !user.get("name").isJsonNull()) {
+                            userName = user.get("name").getAsString();
+                        }
+                    }
+                    String createdAt = (p.get("created_at") != null && !p.get("created_at").isJsonNull()) ? p.get("created_at").getAsString() : "";
+                    postList.add(new Post(userName, content, createdAt));
                 }
-                db.savePostsForTopic(topicId, postList);
-                Platform.runLater(() -> {
-                    posts.setAll(postStrings);
-                    bottomStatusLabel.setText("Posts refreshed from API");
-                });
+                // Save to cache
+                db.savePostsForTopic(topicId, postListToMap(postList, topicId));
+
+                if (loadingTopicId == currentLoadId) {
+                    Platform.runLater(() -> {
+                        posts.setAll(postList);
+                        bottomStatusLabel.setText("Posts refreshed from API");
+                        loadingPosts.set(false);
+                    });
+                }
             } catch (IOException e) {
-                Platform.runLater(() -> bottomStatusLabel.setText("Error refreshing posts: " + e.getMessage()));
+                if (loadingTopicId == currentLoadId) {
+                    Platform.runLater(() -> {
+                        bottomStatusLabel.setText("Error refreshing posts: " + e.getMessage());
+                        loadingPosts.set(false);
+                    });
+                }
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    // Helper: convert List<Post> to List<Map> for DatabaseHelper (keeps cache)
+    private List<Map<String, Object>> postListToMap(List<Post> postList, int topicId) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Post p : postList) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", System.currentTimeMillis() + new Random().nextInt(1000)); // dummy id for cache
+            map.put("topic_id", topicId);
+            map.put("user_name", p.getAuthor());
+            map.put("content", p.getContent());
+            map.put("created_at", p.getTimestamp());
+            map.put("updated_at", p.getTimestamp());
+            map.put("user_id", 0); // placeholder
+            map.put("is_private", false);
+            map.put("parent_id", null);
+            result.add(map);
+        }
+        return result;
     }
 
     @FXML
