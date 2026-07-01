@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Cache; // <-- ADDED for global polling trigger
+use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Web\GroupTopicController;
 use App\Http\Controllers\Web\TopicController;
 use App\Http\Controllers\Web\PostController;
@@ -28,7 +28,7 @@ Route::get('/', function () {
 // AUTH ROUTES – Breeze (login, register, logout, password reset)
 // ============================================
 require __DIR__.'/auth.php';
-Route::get('/groups/{group}/quizzes', [QuizController::class, 'listForGroup']);
+
 // ============================================
 // PROTECTED ROUTES – require authentication AND approval
 // ============================================
@@ -90,6 +90,9 @@ Route::middleware(['auth', 'approved'])->group(function () {
         Route::get('/{group}/topics/{topic}', [TopicController::class, 'show'])->name('topics.show');
         Route::post('/{group}/topics', [TopicController::class, 'store'])->name('topics.store');
         Route::post('/{group}/topics/{topic}/posts', [PostController::class, 'store'])->name('posts.store');
+
+        // ---- QUIZ LIST ROUTE (MOVED INSIDE AUTH) ----
+        Route::get('/{group}/quizzes', [QuizController::class, 'listForGroup'])->name('groups.quizzes');
     });
 
     // ============================================
@@ -134,7 +137,7 @@ Route::middleware(['auth', 'approved'])->group(function () {
     Route::get('/quizzes', [QuizController::class, 'index'])->name('quizzes.index');
 
     // ============================================
-    // QUIZZES (nested under groups)
+    // QUIZZES (nested under groups) – CREATE, TAKE, SUBMIT, RESULTS
     // ============================================
     Route::prefix('groups/{group}')->group(function () {
         Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
@@ -149,7 +152,7 @@ Route::middleware(['auth', 'approved'])->group(function () {
     // ============================================
     Route::get('/check-new-posts', function () {
         return response()->json([
-            'trigger' => Cache::get('new_post_trigger', 0)  // <-- CHANGED to Cache
+            'trigger' => Cache::get('new_post_trigger', 0)
         ]);
     })->middleware('auth')->name('check.posts');
 

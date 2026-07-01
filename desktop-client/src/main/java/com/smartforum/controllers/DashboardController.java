@@ -17,7 +17,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.smartforum.App;
 import com.smartforum.models.Post;
-import com.smartforum.models.Quiz;      // ← Quiz import already present
+import com.smartforum.models.Quiz;
 import com.smartforum.services.ApiClient;
 import com.smartforum.services.DatabaseHelper;
 
@@ -26,6 +26,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -36,8 +37,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.Alert;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -52,17 +51,17 @@ public class DashboardController {
     @FXML private ListView<String> groupListView;
     @FXML private ListView<String> topicListView;
     @FXML private ListView<Post> postListView;
-    @FXML private ListView<Quiz> quizListView;              // ← added
-    @FXML private ToggleButton viewToggle;                 // ← added
+    @FXML private ListView<Quiz> quizListView;
     @FXML private Label groupTitleLabel;
     @FXML private Label bottomStatusLabel;
     @FXML private Button backButton;
+    @FXML private HBox replyContainer;
+    @FXML private TextField replyInput;
 
     private ObservableList<String> groups = FXCollections.observableArrayList();
     private ObservableList<String> topics = FXCollections.observableArrayList();
     private ObservableList<Post> posts = FXCollections.observableArrayList();
-    private ObservableList<Quiz> quizzes = FXCollections.observableArrayList();  // ← added
-    private boolean showingQuizzes = false;                 // ← added: false = topics, true = quizzes
+    private ObservableList<Quiz> quizzes = FXCollections.observableArrayList();
 
     private int currentGroupId = -1;
     private int currentTopicId = -1;
@@ -104,7 +103,7 @@ public class DashboardController {
         groupListView.setItems(groups);
         topicListView.setItems(topics);
         postListView.setItems(posts);
-        quizListView.setItems(quizzes);                     // ← added
+        quizListView.setItems(quizzes);
 
         // ---- Group Cell Factory ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
@@ -165,7 +164,7 @@ public class DashboardController {
             }
         });
 
-        // ---- Quiz List Cell Factory (added) ----
+        // ---- Quiz List Cell Factory ----
         quizListView.setCellFactory(lv -> new ListCell<Quiz>() {
             @Override
             protected void updateItem(Quiz quiz, boolean empty) {
@@ -251,10 +250,17 @@ public class DashboardController {
             }
         });
 
-        // ---- Quiz selection listener (added) ----
+        // ---- Quiz selection listener ----
         quizListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 handleTakeQuiz(newVal);
+            }
+        });
+
+        // ---- Reply input ----
+        replyInput.setOnKeyPressed(e -> {
+            if (e.getCode().toString().equals("ENTER") && !e.isShiftDown()) {
+                handleSendReply();
             }
         });
 
@@ -268,21 +274,24 @@ public class DashboardController {
                 if (parts.length == 2) {
                     int newGroupId = Integer.parseInt(parts[0]);
                     String groupName = parts[1];
-                    // If we were viewing posts, go back to the list view first
                     if (isShowingPosts) {
                         isShowingPosts = false;
                         backButton.setVisible(false);
-                        // Show either topics or quizzes based on toggle state
-                        showAppropriateListView();
+                        postListView.setVisible(false);
+                        postListView.setManaged(false);
+                        replyContainer.setVisible(false);
+                        replyContainer.setManaged(false);
+                        currentTopicId = -1;
                     }
+                    // Hide quizzes
+                    quizListView.setVisible(false);
+                    quizListView.setManaged(false);
+                    // Show topics
+                    topicListView.setVisible(true);
+                    topicListView.setManaged(true);
                     currentGroupId = newGroupId;
                     groupTitleLabel.setText(groupName);
-                    // Load the appropriate content for this group
-                    if (showingQuizzes) {
-                        loadQuizzes(currentGroupId);
-                    } else {
-                        loadTopics(currentGroupId);
-                    }
+                    loadTopics(currentGroupId);
                 }
             }
         });
@@ -300,37 +309,18 @@ public class DashboardController {
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
 
-        // Initial visibility: show topics, hide quizzes and posts
-        viewToggle.setText("Quizzes");               // button says "Quizzes" to switch to that view
-        showingQuizzes = false;
         topicListView.setVisible(true);
         topicListView.setManaged(true);
         quizListView.setVisible(false);
         quizListView.setManaged(false);
         postListView.setVisible(false);
         postListView.setManaged(false);
+        replyContainer.setVisible(false);
+        replyContainer.setManaged(false);
         isShowingPosts = false;
 
-        // ---- Start periodic sync for offline topics ----
+        // ---- Start periodic sync ----
         startPeriodicSync();
-    }
-
-    // Helper: show the appropriate list (topics or quizzes) based on showingQuizzes
-    private void showAppropriateListView() {
-        if (showingQuizzes) {
-            topicListView.setVisible(false);
-            topicListView.setManaged(false);
-            quizListView.setVisible(true);
-            quizListView.setManaged(true);
-        } else {
-            topicListView.setVisible(true);
-            topicListView.setManaged(true);
-            quizListView.setVisible(false);
-            quizListView.setManaged(false);
-        }
-        postListView.setVisible(false);
-        postListView.setManaged(false);
-        isShowingPosts = false;
     }
 
     // ---- Data loading methods ----
@@ -387,6 +377,15 @@ public class DashboardController {
         final int currentLoadId = (int) System.currentTimeMillis();
         loadingGroupId = currentLoadId;
 
+        // Hide quizzes
+        quizListView.setVisible(false);
+        quizListView.setManaged(false);
+
+        // Show topics
+        topicListView.setVisible(true);
+        topicListView.setManaged(true);
+
+        // Load from cache
         List<Map<String, Object>> cached = db.getTopicsForGroup(groupId);
         if (!cached.isEmpty()) {
             List<String> topicStrings = new ArrayList<>();
@@ -451,7 +450,30 @@ public class DashboardController {
         }).start();
     }
 
-    // ---- Load Quizzes (added) ----
+    @FXML
+    public void showQuizzes() {
+        if (currentGroupId == -1) {
+            showAlert("Please select a group first.");
+            return;
+        }
+
+        // Hide posts if visible
+        isShowingPosts = false;
+        backButton.setVisible(false);
+        postListView.setVisible(false);
+        postListView.setManaged(false);
+        replyContainer.setVisible(false);
+        replyContainer.setManaged(false);
+
+        // Hide topics, show quizzes
+        topicListView.setVisible(false);
+        topicListView.setManaged(false);
+        quizListView.setVisible(true);
+        quizListView.setManaged(true);
+
+        loadQuizzes(currentGroupId);
+    }
+
     private void loadQuizzes(int groupId) {
         bottomStatusLabel.setText("Loading quizzes...");
         new Thread(() -> {
@@ -478,6 +500,15 @@ public class DashboardController {
         }).start();
     }
 
+    private void handleTakeQuiz(Quiz quiz) {
+        try {
+            App.showQuiz(currentGroupId, quiz.getId(), quiz.getTitle(), quiz.getDuration() * 60);
+        } catch (Exception e) {
+            e.printStackTrace();
+            bottomStatusLabel.setText("Error opening quiz: " + e.getMessage());
+        }
+    }
+
     private void showPosts(int topicId) {
         loadingPosts.set(true);
         final int currentLoadId = (int) System.currentTimeMillis();
@@ -485,14 +516,16 @@ public class DashboardController {
 
         isShowingPosts = true;
         backButton.setVisible(true);
-        // Hide both topic and quiz lists, show posts
         topicListView.setVisible(false);
         topicListView.setManaged(false);
         quizListView.setVisible(false);
         quizListView.setManaged(false);
         postListView.setVisible(true);
         postListView.setManaged(true);
+        replyContainer.setVisible(true);
+        replyContainer.setManaged(true);
 
+        // Load from cache
         List<Map<String, Object>> cached = db.getPostsForTopic(topicId);
         if (!cached.isEmpty()) {
             List<Post> postList = new ArrayList<>();
@@ -520,6 +553,7 @@ public class DashboardController {
                     JsonObject p = el.getAsJsonObject();
                     int id = p.get("id").getAsInt();
                     String content = (p.get("content") != null && !p.get("content").isJsonNull()) ? p.get("content").getAsString() : "";
+
                     String userName = "Unknown";
                     int userId = 0;
                     if (p.has("user") && !p.get("user").isJsonNull()) {
@@ -566,6 +600,49 @@ public class DashboardController {
                         loadingPosts.set(false);
                     });
                 }
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    @FXML
+    public void handleSendReply() {
+        if (currentTopicId == -1 || currentGroupId == -1) {
+            showAlert("No topic selected.");
+            return;
+        }
+        String content = replyInput.getText().trim();
+        if (content.isEmpty()) {
+            showAlert("Please enter a reply.");
+            return;
+        }
+
+        replyInput.setDisable(true);
+        bottomStatusLabel.setText("Sending reply...");
+
+        new Thread(() -> {
+            try {
+                String json = String.format("{\"content\":\"%s\"}", content);
+                String response = ApiClient.post("/groups/" + currentGroupId + "/topics/" + currentTopicId + "/posts", json);
+                JsonObject obj = JsonParser.parseString(response).getAsJsonObject();
+                if (obj.has("success") && obj.get("success").getAsBoolean()) {
+                    Platform.runLater(() -> {
+                        replyInput.clear();
+                        replyInput.setDisable(false);
+                        showPosts(currentTopicId);
+                        bottomStatusLabel.setText("Reply sent!");
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        replyInput.setDisable(false);
+                        bottomStatusLabel.setText("Error: " + (obj.has("message") ? obj.get("message").getAsString() : "Unknown error"));
+                    });
+                }
+            } catch (IOException e) {
+                Platform.runLater(() -> {
+                    replyInput.setDisable(false);
+                    bottomStatusLabel.setText("Error: " + e.getMessage());
+                });
                 e.printStackTrace();
             }
         }).start();
@@ -637,7 +714,6 @@ public class DashboardController {
     }
 
     private void createTopic(int groupId, String title, String body, boolean isPrivate) {
-        // Try to send to API immediately
         try {
             String json = String.format("{\"title\":\"%s\",\"body\":\"%s\",\"is_private\":%b}", title, body, isPrivate);
             String response = ApiClient.post("/groups/" + groupId + "/topics", json);
@@ -645,11 +721,10 @@ public class DashboardController {
             int topicId = obj.get("id").getAsInt();
             Platform.runLater(() -> {
                 topics.add(0, topicId + ": " + title);
-                loadTopics(groupId); // refresh cache
+                loadTopics(groupId);
                 bottomStatusLabel.setText("Topic created online");
             });
         } catch (IOException e) {
-            // Offline: queue
             String data = String.format("{\"group_id\":%d,\"title\":\"%s\",\"body\":\"%s\",\"is_private\":%b}", groupId, title, body, isPrivate);
             db.addToSyncQueue("create_topic", data);
             Platform.runLater(() -> {
@@ -681,10 +756,8 @@ public class DashboardController {
                     ApiClient.post("/groups/" + groupId + "/topics", json);
                     db.markSyncItemSynced(id);
                     syncedCount++;
-                    // Refresh topics for that group
                     loadTopics(groupId);
                 }
-                // Add other actions later
             } catch (IOException e) {
                 // keep in queue
             }
@@ -699,7 +772,7 @@ public class DashboardController {
         new Thread(() -> {
             while (true) {
                 try {
-                    Thread.sleep(30000); // 30 seconds
+                    Thread.sleep(30000);
                     if (ApiClient.ping()) {
                         syncPendingItems();
                     }
@@ -710,66 +783,20 @@ public class DashboardController {
         }).start();
     }
 
-    // ---- TOGGLE VIEW (added) ----
-    @FXML
-    public void toggleView() {
-        showingQuizzes = !showingQuizzes;
-        viewToggle.setText(showingQuizzes ? "Topics" : "Quizzes");
-        // Switch visibility between topics and quizzes
-        if (showingQuizzes) {
-            topicListView.setVisible(false);
-            topicListView.setManaged(false);
-            quizListView.setVisible(true);
-            quizListView.setManaged(true);
-            // Load quizzes for current group if available
-            if (currentGroupId != -1) {
-                loadQuizzes(currentGroupId);
-            }
-        } else {
-            topicListView.setVisible(true);
-            topicListView.setManaged(true);
-            quizListView.setVisible(false);
-            quizListView.setManaged(false);
-            // Load topics for current group if available
-            if (currentGroupId != -1) {
-                loadTopics(currentGroupId);
-            }
-        }
-        // Hide posts and reset back button
-        postListView.setVisible(false);
-        postListView.setManaged(false);
-        backButton.setVisible(false);
-        isShowingPosts = false;
-        // Update group title? Keep it as group name, no change.
-    }
-
-    // ---- HANDLE TAKE QUIZ (added) ----
-    private void handleTakeQuiz(Quiz quiz) {
-        try {
-            // Pass groupId, quizId, title, duration (convert minutes to seconds)
-            App.showQuiz(currentGroupId, quiz.getId(), quiz.getTitle(), quiz.getDuration() * 60);
-        } catch (Exception e) {
-            e.printStackTrace();
-            bottomStatusLabel.setText("Error opening quiz: " + e.getMessage());
-        }
-    }
-
     // ---- NAVIGATION ----
 
     @FXML
     public void handleBack() {
         isShowingPosts = false;
         backButton.setVisible(false);
-        // Return to the appropriate list (topics or quizzes)
-        showAppropriateListView();
-        // Restore group title (may have been changed to "Topics" by old code)
-        // We keep it as group name; we might show "Topics" or "Quizzes" prefix
-        if (showingQuizzes) {
-            groupTitleLabel.setText("Quizzes");
-        } else {
-            groupTitleLabel.setText("Topics");
-        }
-        bottomStatusLabel.setText("Back to " + (showingQuizzes ? "quizzes" : "topics"));
+        postListView.setVisible(false);
+        postListView.setManaged(false);
+        replyContainer.setVisible(false);
+        replyContainer.setManaged(false);
+        topicListView.setVisible(true);
+        topicListView.setManaged(true);
+        groupTitleLabel.setText("Topics");
+        bottomStatusLabel.setText("Back to topics");
         currentTopicId = -1;
     }
 
