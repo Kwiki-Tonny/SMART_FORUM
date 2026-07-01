@@ -17,6 +17,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.smartforum.App;
 import com.smartforum.models.Post;
+import com.smartforum.models.Quiz;      // ← Quiz import already present
 import com.smartforum.services.ApiClient;
 import com.smartforum.services.DatabaseHelper;
 
@@ -26,9 +27,18 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Alert;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -42,6 +52,8 @@ public class DashboardController {
     @FXML private ListView<String> groupListView;
     @FXML private ListView<String> topicListView;
     @FXML private ListView<Post> postListView;
+    @FXML private ListView<Quiz> quizListView;              // ← added
+    @FXML private ToggleButton viewToggle;                 // ← added
     @FXML private Label groupTitleLabel;
     @FXML private Label bottomStatusLabel;
     @FXML private Button backButton;
@@ -49,12 +61,13 @@ public class DashboardController {
     private ObservableList<String> groups = FXCollections.observableArrayList();
     private ObservableList<String> topics = FXCollections.observableArrayList();
     private ObservableList<Post> posts = FXCollections.observableArrayList();
+    private ObservableList<Quiz> quizzes = FXCollections.observableArrayList();  // ← added
+    private boolean showingQuizzes = false;                 // ← added: false = topics, true = quizzes
 
     private int currentGroupId = -1;
     private int currentTopicId = -1;
     private boolean isShowingPosts = false;
 
-    // Use two different load IDs to distinguish topics vs posts
     private AtomicBoolean loadingTopics = new AtomicBoolean(false);
     private int loadingGroupId = -1;
 
@@ -91,6 +104,7 @@ public class DashboardController {
         groupListView.setItems(groups);
         topicListView.setItems(topics);
         postListView.setItems(posts);
+        quizListView.setItems(quizzes);                     // ← added
 
         // ---- Group Cell Factory ----
         groupListView.setCellFactory(lv -> new ListCell<String>() {
@@ -151,7 +165,28 @@ public class DashboardController {
             }
         });
 
-        // ---- Post List Cell Factory (X‑style with real timestamps) ----
+        // ---- Quiz List Cell Factory (added) ----
+        quizListView.setCellFactory(lv -> new ListCell<Quiz>() {
+            @Override
+            protected void updateItem(Quiz quiz, boolean empty) {
+                super.updateItem(quiz, empty);
+                if (empty || quiz == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                VBox card = new VBox(4);
+                card.setStyle("-fx-padding: 10 15; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
+                Label titleLabel = new Label(quiz.getTitle());
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #075E54;");
+                Label metaLabel = new Label("Duration: " + quiz.getDuration() + " min" + (quiz.getDescription() != null && !quiz.getDescription().isEmpty() ? " · " + quiz.getDescription() : ""));
+                metaLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #8899A6;");
+                card.getChildren().addAll(titleLabel, metaLabel);
+                setGraphic(card);
+            }
+        });
+
+        // ---- Post List Cell Factory ----
         postListView.setCellFactory(lv -> new ListCell<Post>() {
             @Override
             protected void updateItem(Post post, boolean empty) {
@@ -174,7 +209,6 @@ public class DashboardController {
                 HBox header = new HBox(8);
                 header.setStyle("-fx-alignment: center-left;");
 
-                // Avatar
                 StackPane avatarPane = new StackPane();
                 avatarPane.setPrefSize(32, 32);
                 avatarPane.setStyle("-fx-background-radius: 50%; -fx-background-color: #075E54; -fx-alignment: center;");
@@ -185,7 +219,6 @@ public class DashboardController {
                 Label authorLabel = new Label(post.getAuthor());
                 authorLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0F1419;");
 
-                // Real timestamp
                 String displayTime = formatTimestamp(post.getTimestamp());
                 Label timestampLabel = new Label(displayTime);
                 timestampLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #8899A6;");
@@ -218,6 +251,13 @@ public class DashboardController {
             }
         });
 
+        // ---- Quiz selection listener (added) ----
+        quizListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                handleTakeQuiz(newVal);
+            }
+        });
+
         // ---- Load groups ----
         loadGroups();
 
@@ -228,18 +268,21 @@ public class DashboardController {
                 if (parts.length == 2) {
                     int newGroupId = Integer.parseInt(parts[0]);
                     String groupName = parts[1];
+                    // If we were viewing posts, go back to the list view first
                     if (isShowingPosts) {
                         isShowingPosts = false;
                         backButton.setVisible(false);
-                        topicListView.setVisible(true);
-                        topicListView.setManaged(true);
-                        postListView.setVisible(false);
-                        postListView.setManaged(false);
-                        currentTopicId = -1;
+                        // Show either topics or quizzes based on toggle state
+                        showAppropriateListView();
                     }
                     currentGroupId = newGroupId;
                     groupTitleLabel.setText(groupName);
-                    loadTopics(currentGroupId);
+                    // Load the appropriate content for this group
+                    if (showingQuizzes) {
+                        loadQuizzes(currentGroupId);
+                    } else {
+                        loadTopics(currentGroupId);
+                    }
                 }
             }
         });
@@ -257,17 +300,42 @@ public class DashboardController {
         backButton.setOnAction(e -> handleBack());
         backButton.setVisible(false);
 
+        // Initial visibility: show topics, hide quizzes and posts
+        viewToggle.setText("Quizzes");               // button says "Quizzes" to switch to that view
+        showingQuizzes = false;
         topicListView.setVisible(true);
         topicListView.setManaged(true);
+        quizListView.setVisible(false);
+        quizListView.setManaged(false);
+        postListView.setVisible(false);
+        postListView.setManaged(false);
+        isShowingPosts = false;
+
+        // ---- Start periodic sync for offline topics ----
+        startPeriodicSync();
+    }
+
+    // Helper: show the appropriate list (topics or quizzes) based on showingQuizzes
+    private void showAppropriateListView() {
+        if (showingQuizzes) {
+            topicListView.setVisible(false);
+            topicListView.setManaged(false);
+            quizListView.setVisible(true);
+            quizListView.setManaged(true);
+        } else {
+            topicListView.setVisible(true);
+            topicListView.setManaged(true);
+            quizListView.setVisible(false);
+            quizListView.setManaged(false);
+        }
         postListView.setVisible(false);
         postListView.setManaged(false);
         isShowingPosts = false;
     }
 
-    // ---- Data loading methods (with caching and null‑safe parsing) ----
+    // ---- Data loading methods ----
 
     private void loadGroups() {
-        // Load from cache
         List<Map<String, Object>> cached = db.getGroups();
         if (!cached.isEmpty()) {
             List<String> groupStrings = new ArrayList<>();
@@ -319,7 +387,6 @@ public class DashboardController {
         final int currentLoadId = (int) System.currentTimeMillis();
         loadingGroupId = currentLoadId;
 
-        // Load from cache
         List<Map<String, Object>> cached = db.getTopicsForGroup(groupId);
         if (!cached.isEmpty()) {
             List<String> topicStrings = new ArrayList<>();
@@ -384,20 +451,48 @@ public class DashboardController {
         }).start();
     }
 
+    // ---- Load Quizzes (added) ----
+    private void loadQuizzes(int groupId) {
+        bottomStatusLabel.setText("Loading quizzes...");
+        new Thread(() -> {
+            try {
+                String response = ApiClient.get("/groups/" + groupId + "/quizzes");
+                JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
+                List<Quiz> quizList = new ArrayList<>();
+                for (JsonElement el : jsonArray) {
+                    JsonObject obj = el.getAsJsonObject();
+                    int id = obj.get("id").getAsInt();
+                    String title = obj.get("title").getAsString();
+                    int duration = obj.get("duration").getAsInt();
+                    String description = obj.has("description") && !obj.get("description").isJsonNull() ? obj.get("description").getAsString() : "";
+                    quizList.add(new Quiz(id, title, duration, description));
+                }
+                Platform.runLater(() -> {
+                    quizzes.setAll(quizList);
+                    bottomStatusLabel.setText("Quizzes loaded (" + quizzes.size() + ")");
+                });
+            } catch (IOException e) {
+                Platform.runLater(() -> bottomStatusLabel.setText("Error loading quizzes: " + e.getMessage()));
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
     private void showPosts(int topicId) {
         loadingPosts.set(true);
         final int currentLoadId = (int) System.currentTimeMillis();
         loadingTopicId = currentLoadId;
 
-        // Switch UI to posts view
         isShowingPosts = true;
         backButton.setVisible(true);
+        // Hide both topic and quiz lists, show posts
         topicListView.setVisible(false);
         topicListView.setManaged(false);
+        quizListView.setVisible(false);
+        quizListView.setManaged(false);
         postListView.setVisible(true);
         postListView.setManaged(true);
 
-        // Load from cache
         List<Map<String, Object>> cached = db.getPostsForTopic(topicId);
         if (!cached.isEmpty()) {
             List<Post> postList = new ArrayList<>();
@@ -420,22 +515,42 @@ public class DashboardController {
                 JsonObject obj = JsonParser.parseString(response).getAsJsonObject();
                 JsonArray postsArray = obj.getAsJsonArray("posts");
                 List<Post> postList = new ArrayList<>();
+                List<Map<String, Object>> postMaps = new ArrayList<>();
                 for (JsonElement el : postsArray) {
                     JsonObject p = el.getAsJsonObject();
+                    int id = p.get("id").getAsInt();
                     String content = (p.get("content") != null && !p.get("content").isJsonNull()) ? p.get("content").getAsString() : "";
-                    
                     String userName = "Unknown";
+                    int userId = 0;
                     if (p.has("user") && !p.get("user").isJsonNull()) {
                         JsonObject user = p.getAsJsonObject("user");
                         if (user.has("name") && !user.get("name").isJsonNull()) {
                             userName = user.get("name").getAsString();
                         }
+                        if (user.has("id") && !user.get("id").isJsonNull()) {
+                            userId = user.get("id").getAsInt();
+                        }
                     }
                     String createdAt = (p.get("created_at") != null && !p.get("created_at").isJsonNull()) ? p.get("created_at").getAsString() : "";
+                    String updatedAt = (p.get("updated_at") != null && !p.get("updated_at").isJsonNull()) ? p.get("updated_at").getAsString() : "";
+                    Boolean isPrivate = p.has("is_private") && !p.get("is_private").isJsonNull() && p.get("is_private").getAsBoolean();
+                    Integer parentId = (p.has("parent_id") && !p.get("parent_id").isJsonNull()) ? p.get("parent_id").getAsInt() : null;
+
                     postList.add(new Post(userName, content, createdAt));
+
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", (long) id);
+                    map.put("topic_id", topicId);
+                    map.put("user_id", (long) userId);
+                    map.put("user_name", userName);
+                    map.put("content", content);
+                    map.put("is_private", isPrivate);
+                    map.put("parent_id", parentId != null ? (long) parentId : null);
+                    map.put("created_at", createdAt);
+                    map.put("updated_at", updatedAt);
+                    postMaps.add(map);
                 }
-                // Save to cache
-                db.savePostsForTopic(topicId, postListToMap(postList, topicId));
+                db.savePostsForTopic(topicId, postMaps);
 
                 if (loadingTopicId == currentLoadId) {
                     Platform.runLater(() -> {
@@ -456,35 +571,205 @@ public class DashboardController {
         }).start();
     }
 
-    // Helper: convert List<Post> to List<Map> for DatabaseHelper (keeps cache)
-    private List<Map<String, Object>> postListToMap(List<Post> postList, int topicId) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Post p : postList) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", System.currentTimeMillis() + new Random().nextInt(1000)); // dummy id for cache
-            map.put("topic_id", topicId);
-            map.put("user_name", p.getAuthor());
-            map.put("content", p.getContent());
-            map.put("created_at", p.getTimestamp());
-            map.put("updated_at", p.getTimestamp());
-            map.put("user_id", 0); // placeholder
-            map.put("is_private", false);
-            map.put("parent_id", null);
-            result.add(map);
+    // ---- CREATE TOPIC (with offline queue) ----
+
+    @FXML
+    public void handleNewTopic() {
+        if (currentGroupId == -1) {
+            showAlert("Please select a group first.");
+            return;
         }
-        return result;
+
+        Dialog<TopicData> dialog = new Dialog<>();
+        dialog.setTitle("New Topic");
+        dialog.setHeaderText("Create a new topic in this group");
+
+        ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField titleField = new TextField();
+        titleField.setPromptText("Title");
+        TextArea bodyField = new TextArea();
+        bodyField.setPromptText("Body");
+        bodyField.setPrefRowCount(4);
+        CheckBox privateCheck = new CheckBox("Private");
+
+        grid.add(new Label("Title:"), 0, 0);
+        grid.add(titleField, 1, 0);
+        grid.add(new Label("Body:"), 0, 1);
+        grid.add(bodyField, 1, 1);
+        grid.add(privateCheck, 1, 2);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Platform.runLater(() -> titleField.requestFocus());
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == createButtonType) {
+                return new TopicData(titleField.getText(), bodyField.getText(), privateCheck.isSelected());
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(data -> {
+            if (data.title.isEmpty() || data.body.isEmpty()) {
+                showAlert("Title and body are required.");
+                return;
+            }
+            createTopic(currentGroupId, data.title, data.body, data.isPrivate);
+        });
     }
+
+    private static class TopicData {
+        String title;
+        String body;
+        boolean isPrivate;
+        TopicData(String title, String body, boolean isPrivate) {
+            this.title = title;
+            this.body = body;
+            this.isPrivate = isPrivate;
+        }
+    }
+
+    private void createTopic(int groupId, String title, String body, boolean isPrivate) {
+        // Try to send to API immediately
+        try {
+            String json = String.format("{\"title\":\"%s\",\"body\":\"%s\",\"is_private\":%b}", title, body, isPrivate);
+            String response = ApiClient.post("/groups/" + groupId + "/topics", json);
+            JsonObject obj = JsonParser.parseString(response).getAsJsonObject();
+            int topicId = obj.get("id").getAsInt();
+            Platform.runLater(() -> {
+                topics.add(0, topicId + ": " + title);
+                loadTopics(groupId); // refresh cache
+                bottomStatusLabel.setText("Topic created online");
+            });
+        } catch (IOException e) {
+            // Offline: queue
+            String data = String.format("{\"group_id\":%d,\"title\":\"%s\",\"body\":\"%s\",\"is_private\":%b}", groupId, title, body, isPrivate);
+            db.addToSyncQueue("create_topic", data);
+            Platform.runLater(() -> {
+                topics.add(0, "⏳ " + title + " (pending sync)");
+                bottomStatusLabel.setText("Topic queued for sync (offline)");
+            });
+        }
+    }
+
+    // ---- SYNC QUEUE ----
+
+    private void syncPendingItems() {
+        List<Map<String, Object>> pending = db.getPendingSyncItems();
+        if (pending.isEmpty()) return;
+
+        int syncedCount = 0;
+        for (Map<String, Object> item : pending) {
+            int id = (int) item.get("id");
+            String action = (String) item.get("action");
+            String data = (String) item.get("data");
+            try {
+                if ("create_topic".equals(action)) {
+                    JsonObject obj = JsonParser.parseString(data).getAsJsonObject();
+                    int groupId = obj.get("group_id").getAsInt();
+                    String title = obj.get("title").getAsString();
+                    String body = obj.get("body").getAsString();
+                    boolean isPrivate = obj.get("is_private").getAsBoolean();
+                    String json = String.format("{\"title\":\"%s\",\"body\":\"%s\",\"is_private\":%b}", title, body, isPrivate);
+                    ApiClient.post("/groups/" + groupId + "/topics", json);
+                    db.markSyncItemSynced(id);
+                    syncedCount++;
+                    // Refresh topics for that group
+                    loadTopics(groupId);
+                }
+                // Add other actions later
+            } catch (IOException e) {
+                // keep in queue
+            }
+        }
+        final int finalSynced = syncedCount;
+        Platform.runLater(() -> {
+            bottomStatusLabel.setText("Sync completed: " + finalSynced + " items synced.");
+        });
+    }
+
+    private void startPeriodicSync() {
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(30000); // 30 seconds
+                    if (ApiClient.ping()) {
+                        syncPendingItems();
+                    }
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }).start();
+    }
+
+    // ---- TOGGLE VIEW (added) ----
+    @FXML
+    public void toggleView() {
+        showingQuizzes = !showingQuizzes;
+        viewToggle.setText(showingQuizzes ? "Topics" : "Quizzes");
+        // Switch visibility between topics and quizzes
+        if (showingQuizzes) {
+            topicListView.setVisible(false);
+            topicListView.setManaged(false);
+            quizListView.setVisible(true);
+            quizListView.setManaged(true);
+            // Load quizzes for current group if available
+            if (currentGroupId != -1) {
+                loadQuizzes(currentGroupId);
+            }
+        } else {
+            topicListView.setVisible(true);
+            topicListView.setManaged(true);
+            quizListView.setVisible(false);
+            quizListView.setManaged(false);
+            // Load topics for current group if available
+            if (currentGroupId != -1) {
+                loadTopics(currentGroupId);
+            }
+        }
+        // Hide posts and reset back button
+        postListView.setVisible(false);
+        postListView.setManaged(false);
+        backButton.setVisible(false);
+        isShowingPosts = false;
+        // Update group title? Keep it as group name, no change.
+    }
+
+    // ---- HANDLE TAKE QUIZ (added) ----
+    private void handleTakeQuiz(Quiz quiz) {
+        try {
+            // Pass groupId, quizId, title, duration (convert minutes to seconds)
+            App.showQuiz(currentGroupId, quiz.getId(), quiz.getTitle(), quiz.getDuration() * 60);
+        } catch (Exception e) {
+            e.printStackTrace();
+            bottomStatusLabel.setText("Error opening quiz: " + e.getMessage());
+        }
+    }
+
+    // ---- NAVIGATION ----
 
     @FXML
     public void handleBack() {
         isShowingPosts = false;
         backButton.setVisible(false);
-        topicListView.setVisible(true);
-        topicListView.setManaged(true);
-        postListView.setVisible(false);
-        postListView.setManaged(false);
-        groupTitleLabel.setText("Topics");
-        bottomStatusLabel.setText("Back to topics");
+        // Return to the appropriate list (topics or quizzes)
+        showAppropriateListView();
+        // Restore group title (may have been changed to "Topics" by old code)
+        // We keep it as group name; we might show "Topics" or "Quizzes" prefix
+        if (showingQuizzes) {
+            groupTitleLabel.setText("Quizzes");
+        } else {
+            groupTitleLabel.setText("Topics");
+        }
+        bottomStatusLabel.setText("Back to " + (showingQuizzes ? "quizzes" : "topics"));
         currentTopicId = -1;
     }
 
@@ -493,5 +778,13 @@ public class DashboardController {
         db.clearAllCaches();
         ApiClient.setToken(null);
         App.showLoginScreen();
+    }
+
+    private void showAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Warning");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

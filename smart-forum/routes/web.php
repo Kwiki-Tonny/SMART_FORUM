@@ -28,7 +28,7 @@ Route::get('/', function () {
 // AUTH ROUTES – Breeze (login, register, logout, password reset)
 // ============================================
 require __DIR__.'/auth.php';
-
+Route::get('/groups/{group}/quizzes', [QuizController::class, 'listForGroup']);
 // ============================================
 // PROTECTED ROUTES – require authentication AND approval
 // ============================================

@@ -214,13 +214,20 @@ public class DatabaseHelper {
             delStmt.setInt(1, topicId);
             delStmt.execute();
             for (Map<String, Object> post : posts) {
-                insStmt.setInt(1, (int) post.get("id"));
+                Number id = (Number) post.get("id");
+                Number userId = (Number) post.get("user_id");
+                insStmt.setLong(1, id.longValue());
                 insStmt.setInt(2, topicId);
-                insStmt.setObject(3, post.get("user_id"));
+                insStmt.setLong(3, userId != null ? userId.longValue() : 0);
                 insStmt.setString(4, (String) post.get("user_name"));
                 insStmt.setString(5, (String) post.get("content"));
                 insStmt.setInt(6, (Boolean) post.getOrDefault("is_private", false) ? 1 : 0);
-                insStmt.setObject(7, post.get("parent_id"));
+                Object parentId = post.get("parent_id");
+                if (parentId != null) {
+                    insStmt.setLong(7, ((Number) parentId).longValue());
+                } else {
+                    insStmt.setNull(7, java.sql.Types.INTEGER);
+                }
                 insStmt.setString(8, (String) post.get("created_at"));
                 insStmt.setString(9, (String) post.get("updated_at"));
                 insStmt.addBatch();
@@ -270,6 +277,47 @@ public class DatabaseHelper {
         }
     }
 
+    public List<Map<String, Object>> getPendingSyncItems() {
+        List<Map<String, Object>> items = new ArrayList<>();
+        String sql = "SELECT id, action, data, created_at FROM sync_queue WHERE synced = 0 ORDER BY id ASC";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", rs.getInt("id"));
+                item.put("action", rs.getString("action"));
+                item.put("data", rs.getString("data"));
+                item.put("created_at", rs.getString("created_at"));
+                items.add(item);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return items;
+    }
+
+    public void markSyncItemSynced(int id) {
+        String sql = "UPDATE sync_queue SET synced = 1 WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void clearSyncQueue() {
+        String sql = "DELETE FROM sync_queue WHERE synced = 1";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     // ---- Clear all caches ----
     public void clearAllCaches() {
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -278,12 +326,14 @@ public class DatabaseHelper {
             stmt.execute("DELETE FROM topics");
             stmt.execute("DELETE FROM posts");
             stmt.execute("DELETE FROM sync_queue");
+            stmt.execute("DELETE FROM user");
+            stmt.execute("DELETE FROM metadata");
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    // ---- Metadata (optional) ----
+    // ---- Metadata ----
     public void setMetadata(String key, String value) {
         String sql = "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)";
         try (Connection conn = DriverManager.getConnection(DB_URL);

@@ -20,6 +20,19 @@ class QuizController extends Controller
         return view('quizzes.create', compact('group'));
     }
 
+    public function listForGroup(Group $group) {
+    $quizzes = $group->quizzes()
+        ->where('is_published', true)
+        ->where(function ($q) {
+            $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+        })
+        ->where(function ($q) {
+            $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+        })
+        ->get();
+    return response()->json($quizzes);
+    }
+    
     public function store(Request $request, Group $group)
     {
         $user = auth()->user();

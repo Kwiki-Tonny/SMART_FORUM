@@ -1,5 +1,7 @@
 package com.smartforum;
 
+import com.smartforum.controllers.QuizController;
+
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -34,6 +36,19 @@ public class App extends Application {
         primaryStage.setTitle("Smart Forum");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    public static void showQuiz(int groupId, int quizId, String title, int durationSeconds) throws Exception {
+    FXMLLoader loader = new FXMLLoader(App.class.getResource("/fxml/quiz.fxml"));
+    Pane root = loader.load();
+    QuizController controller = loader.getController();
+    controller.initData(groupId, quizId, title, durationSeconds);
+    Scene scene = new Scene(root, 800, 600);
+    scene.getStylesheets().add(App.class.getResource("/styles/style.css").toExternalForm());
+    Stage stage = new Stage();
+    stage.setTitle("Quiz");
+    stage.setScene(scene);
+    stage.show();
     }
 
     public static void main(String[] args) {
